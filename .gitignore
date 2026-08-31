@@ -1,6 +1,7 @@
 gradle.properties
 .DS_Store
 run/
+runs/
 build/
 out/
 .idea/
