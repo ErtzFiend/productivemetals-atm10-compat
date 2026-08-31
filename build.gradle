@@ -1,0 +1,38 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.gradle.userdev' version '7.0.171'
+}
+
+version = '1.0.0'
+group = 'us.themilkfridge.atm10'
+
+base {
+    archivesName = 'atm10-smelt-tweaks'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenLocal()
+}
+
+dependencies {
+    implementation "net.neoforged:neoforge:21.1.247"
+}
+
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+            minecraft_version   : '1.21.1',
+            neoforge_version    : '21.1.247',
+            file                : [jarVersion: project.version],
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}

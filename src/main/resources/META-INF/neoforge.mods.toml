@@ -1,0 +1,47 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+issueTrackerURL="https://github.com/SlurpMyDongle/atm10-smelt-tweaks/issues"
+
+[[mods]]
+modId="atm10smelttweaks"
+version="${file.jarVersion}"
+displayName="ATM10 Smelt Tweaks"
+authors="SlurpMyDongle"
+description='''
+All The Mods 10 custom smelting/casting content, packaged as a mod.
+Requires KubeJS (scripts are bundled in kubejs/server_scripts and loaded
+automatically). Adds Productive Metalworks melting recipes for every
+ingot/gem tool & armor piece, melting for misc metal items (cauldrons,
+buckets, anvils, minecarts, crossbows, golden apples), the quartz
+block/stairs/slab family, and a molten-carbon -> coal-block casting-basin
+recipe.
+'''
+
+[[dependencies.atm10smelttweaks]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1.0,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.atm10smelttweaks]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.1]"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.atm10smelttweaks]]
+    modId="kubejs"
+    type="required"
+    versionRange="[2101.7.0-build.0,)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.atm10smelttweaks]]
+    modId="productivemetalworks"
+    type="required"
+    versionRange="[0,)"
+    ordering="AFTER"
+    side="BOTH"
