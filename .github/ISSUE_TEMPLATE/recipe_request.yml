@@ -1,0 +1,74 @@
+name: "Recipe Request"
+description: "Ask for a new melting / casting recipe to be added"
+title: "[Recipe] "
+labels: ["recipe-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the recipe idea! Please fill in as much as you can — the more
+        precise the request, the faster it lands in a release.
+
+  - type: textarea
+    id: items
+    attributes:
+      label: Item(s) to melt (or cast)
+      description: Exact item IDs, or names if you don't know the IDs. For casting, what should the fluid produce?
+      placeholder: |
+        e.g. minecraft:iron_horse_armor
+        e.g. modname:some_gear
+    validations:
+      required: true
+
+  - type: dropdown
+    id: recipe_type
+    attributes:
+      label: Recipe type
+      options:
+        - "Melting (item → molten fluid)"
+        - "Casting (fluid → item in basin/table)"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: material
+    attributes:
+      label: If melting — which material/fluid?
+      description: The fluid it should melt into (e.g. productivemetalworks:molten_iron). Pick the closest match.
+      options:
+        - "Iron (molten_iron)"
+        - "Gold (molten_gold)"
+        - "Copper (molten_copper)"
+        - "Netherite (molten_netherite)"
+        - "Diamond / Emerald / Amethyst / Lapis / Quartz / Redstone (gem melts)"
+        - "Another Productive Metalworks fluid (say which in the notes)"
+        - "Allthemodium / Vibranium / Unobtainium"
+        - "Not sure"
+    validations:
+      required: false
+
+  - type: input
+    id: amount
+    attributes:
+      label: Amount (mB) — optional
+      description: Leave empty and I'll derive it from the item's crafting recipe (90 mB/ingot, 100 mB/gem, PMW conventions).
+      placeholder: "e.g. 450"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: balance
+    attributes:
+      label: Balance acknowledgement
+      options:
+        - label: "I understand yields follow the crafting-recipe cost (90 mB/ingot, 100 mB/gem) so the melt can't be used to duplicate materials"
+          required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else — balance concerns, mod conflicts, links, screenshots.
+    validations:
+      required: false

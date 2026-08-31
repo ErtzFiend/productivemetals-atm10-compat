@@ -136,6 +136,15 @@ productivemetalworks:block_casting
 
 ---
 
+## 🙋 Missing a recipe?
+
+**Open a [Recipe Request issue](https://github.com/ErtzFiend/productivemetals-atm10-compat/issues/new?template=recipe_request.yml)!**
+
+Requests for new melting or casting recipes are very welcome — a mod item that won't
+melt, a block missing from a family, a fluid that should cast into something. Fill in
+the item ID(s) and the template handles the rest; yields are derived from crafting
+costs so everything stays balanced. Good requests go straight into the next release.
+
 ## 🔧 Building
 
 ```bash

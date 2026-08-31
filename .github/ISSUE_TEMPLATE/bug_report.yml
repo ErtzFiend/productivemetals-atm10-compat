@@ -1,0 +1,29 @@
+name: "Bug Report"
+description: "A recipe doesn't work, shows errors, or something else broke"
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: What did you expect vs what actually happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: KubeJS errors or anything suspicious from logs/latest.log (please use a paste service or code fences).
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Mod version
+      placeholder: "e.g. 1.0.0"
+    validations:
+      required: true

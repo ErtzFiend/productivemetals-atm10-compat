@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/ErtzFiend/productivemetals-atm10-compat/discussions
+    about: For questions about how the recipes work or balance chat, open a Discussion instead.
