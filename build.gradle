@@ -8,7 +8,7 @@ version = '1.0.0'
 group = 'us.themilkfridge.atm10'
 
 base {
-    archivesName = 'atm10-smelt-tweaks'
+    archivesName = 'productivemetals-atm10-compat'
 }
 
 java {
