@@ -312,6 +312,22 @@ ServerEvents.recipes(event => {
     // CROSSBOW — 1 iron ingot in the recipe
     event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:crossbow' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 90 }] }).id('allthemods:productive_metalworks/foundry/crossbow/iron')
 
+    // BELL — 6 gold ingots + stick (stick is not metal)
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 540 }] }).id('allthemods:productive_metalworks/foundry/bell/gold')
+
+    // CREATE BELLS — peculiar: brass block + brass plate = 10 ingots; haunted: haunting of peculiar (same metal);
+    // desk bell: andesite casing + 1 gold plate = 1 gold ingot
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'create:peculiar_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_brass', amount: 900 }] }).id('allthemods:productive_metalworks/foundry/bell/brass/peculiar')
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'create:haunted_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_brass', amount: 900 }] }).id('allthemods:productive_metalworks/foundry/bell/brass/haunted')
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'create:desk_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 90 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/desk')
+
+    // BIBLIOCRAFT DESK BELL — 4 iron ingots + stone button + redstone
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'bibliocraft:desk_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 360 }] }).id('allthemods:productive_metalworks/foundry/bell/iron/bibliocraft_desk')
+
+    // MCW HOLIDAYS BELLS — single: 3 gold ingots + 2 nuggets = 3.2 gold; couple = 2 singles = 6.4 gold
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'mcwholidays:single_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 288 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/mcw_single')
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'mcwholidays:couple_bells' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 576 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/mcw_couple')
+
     // QUARTZ BLOCKS — 4 quartz each (gem: 100 mB/unit)
     event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:quartz_block' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/block')
     event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:chiseled_quartz_block' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/chiseled')

@@ -72,7 +72,7 @@ At load time the mod scans **every registered crafting recipe** (~95,000 on ATM1
 **Live result on ATM10:** 259 recipes added, 0 failures —
 copper 88 · iron 30 · silver 23 · steel 18 · bronze 17 · netherite 16 · gold 13 · diamond 13 · osmium 9 · lapis 9 · amethyst 4 · aluminum 4 · ender 4 · lead 3 · blaze 2 · slime 1
 
-### 2 · Misc metal items — *25 hand-written recipes*
+### 2 · Misc metal items — *30 hand-written recipes*
 
 All `productivemetalworks:item_melting`, minimum temperature 1000 K.
 
@@ -101,6 +101,21 @@ All `productivemetalworks:item_melting`, minimum temperature 1000 K.
 |---|---:|---:|
 | Golden Apple | 8 ingots | 720 mB |
 | Enchanted Golden Apple | 72 | 6480 mB |
+
+</details>
+
+<details open>
+<summary><b>Bells 🔔</b> — <i>new in 1.1.0</i></summary>
+
+| Item | Recipe cost | Fluid | Yield |
+|---|---|---|---:|
+| **Bell** ✨ | 6 gold + stick | molten gold | 540 mB |
+| Create Peculiar Bell ✨ | brass block + brass plate (10 ingots) | molten brass | 900 mB |
+| Create Haunted Bell ✨ | haunting of a Peculiar Bell | molten brass | 900 mB |
+| Create Desk Bell ✨ | andesite casing + 1 gold plate | molten gold | 90 mB |
+| BiblioCraft Desk Bell ✨ | 4 iron + button + redstone | molten iron | 360 mB |
+| MCW Holidays Single Bell ✨ | 3 gold + 2 nuggets (3.2) | molten gold | 288 mB |
+| MCW Holidays Couple Bells ✨ | 2 singles (6.4 gold) | molten gold | 576 mB |
 
 </details>
 
