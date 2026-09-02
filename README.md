@@ -151,6 +151,69 @@ productivemetalworks:block_casting
 
 ---
 
+<details open>
+<summary><b>Create + Create addons</b> — <i>new in 1.2.0 · 49 hand-written recipes</i></summary>
+
+| Item | Fluid | Yield |
+|---|---|---:|
+| `create:andesite_alloy` | iron | 10 mB |
+| `create:andesite_alloy_block` | iron | 90 mB |
+| `create:industrial_iron_block` | iron | 810 mB |
+| `create:empty_blaze_burner` | iron | 90 mB |
+| `create:electron_tube` | iron | 90 mB |
+| `create:brass_hand` | brass | 90 mB |
+| `create:copper_backtank` | copper | 900 mB |
+| `create:copper_diving_helmet` | copper | 90 mB |
+| `create:copper_diving_boots` | copper | 90 mB |
+| `create:netherite_backtank` | netherite | 900 mB |
+| `create:netherite_diving_helmet` | netherite | 90 mB |
+| `create:netherite_diving_boots` | netherite | 90 mB |
+| `create:railway_casing` | brass | 90 mB |
+| `create:wand_of_symmetry` | brass | 90 mB |
+| `create:extendo_grip` | brass | 180 mB |
+| `createaddition:spool` | iron | 135 mB |
+| `createaddition:iron_wire` | iron | 45 mB |
+| `createaddition:gold_wire` | gold | 45 mB |
+| `createaddition:copper_wire` | copper | 45 mB |
+| `createaddition:electrum_wire` | electrum | 45 mB |
+| `createaddition:electrum_rod` | electrum | 45 mB |
+| `createaddition:iron_rod` | iron | 45 mB |
+| `createaddition:gold_rod` | gold | 45 mB |
+| `createaddition:copper_rod` | copper | 45 mB |
+| `createaddition:brass_rod` | brass | 45 mB |
+| `createaddition:gold_spool` | gold | 135 mB |
+| `createaddition:copper_spool` | copper | 135 mB |
+| `createaddition:electrum_spool` | electrum | 135 mB |
+| `createdeco:industrial_iron_nugget` | iron | 10 mB |
+| `createdeco:industrial_iron_ingot` | iron | 90 mB |
+| `createdeco:industrial_iron_coin` | iron | 10 mB |
+| `createdeco:industrial_iron_coinstack` | iron | 40 mB |
+| `createdeco:iron_coin` | iron | 10 mB |
+| `createdeco:iron_coinstack` | iron | 40 mB |
+| `createdeco:gold_coin` | gold | 10 mB |
+| `createdeco:gold_coinstack` | gold | 40 mB |
+| `createdeco:copper_coin` | copper | 10 mB |
+| `createdeco:copper_coinstack` | copper | 40 mB |
+| `createdeco:brass_coin` | brass | 10 mB |
+| `createdeco:brass_coinstack` | brass | 40 mB |
+| `createdeco:zinc_coin` | zinc | 10 mB |
+| `createdeco:zinc_coinstack` | zinc | 40 mB |
+| `createdeco:netherite_coin` | netherite | 10 mB |
+| `createdeco:netherite_coinstack` | netherite | 40 mB |
+| `createbigcannons:cast_iron_nugget` | iron | 10 mB |
+| `createbigcannons:cast_iron_ingot` | iron | 90 mB |
+| `create_aquatic_ambitions:prismarine_alloy` | copper | 10 mB |
+| `create_aquatic_ambitions:prismarine_alloy_block` | copper | 90 mB |
+| `create_aquatic_ambitions:prismarine_alloy_rod` | copper | 10 mB |
+
+Every yield is derived from the item's actual crafting cost (Create-family recipe JSONs, verified 2026-09-01):
+ingot 90 mB · nugget/coin 10 · plate 90 · rod/wire 45 · storage block 810. Items PMW already covers via its own
+tag melts (`#c:ingots/zinc`, `#c:ingots/steel`, `#c:ingots/bronze`, `#c:ingots/platinum`, plates, blocks, raw
+materials — Create Zinc, Big Cannons steel/bronze, Create Propulsion platinum, Create Addition electrum) are
+deliberately **not** re-added.
+
+</details>
+
 ## 🙋 Missing a recipe?
 
 **Open a [Recipe Request issue](https://github.com/ErtzFiend/productivemetals-atm10-compat/issues/new?template=recipe_request.yml)!**
