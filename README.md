@@ -72,7 +72,7 @@ At load time the mod scans **every registered crafting recipe** (~95,000 on ATM1
 **Live result on ATM10:** 259 recipes added, 0 failures —
 copper 88 · iron 30 · silver 23 · steel 18 · bronze 17 · netherite 16 · gold 13 · diamond 13 · osmium 9 · lapis 9 · amethyst 4 · aluminum 4 · ender 4 · lead 3 · blaze 2 · slime 1
 
-### 2 · Misc metal items — *30 hand-written recipes*
+### 2 · Misc metal items — *32 hand-written recipes*
 
 All `productivemetalworks:item_melting`, minimum temperature 1000 K.
 
@@ -133,6 +133,18 @@ All `productivemetalworks:item_melting`, minimum temperature 1000 K.
 | Quartz Slab | 2 | 200 mB |
 | **Smooth Quartz Stairs** ✨ | 3 | 300 mB |
 | **Smooth Quartz Slab** ✨ | 2 | 200 mB |
+
+</details>
+
+<details open>
+<summary><b>Misc vanilla items</b> — <i>new in 1.3.1</i></summary>
+
+| Item | Recipe cost | Fluid | Yield |
+|---|---|---|---:|
+| Golden Carrot ✨ | 8 gold nuggets | molten gold | 80 mB |
+| Lodestone ✨ | 8 chiseled stone bricks + 1 **netherite** ingot (1.21.1 recipe) | molten netherite | 90 mB |
+
+> Lodestone note: the recipe only changed to an iron ingot in MC **1.21.5** — ATM10 runs **1.21.1**, so the melt yields netherite, not iron.
 
 </details>
 

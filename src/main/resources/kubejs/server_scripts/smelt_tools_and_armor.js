@@ -328,6 +328,13 @@ ServerEvents.recipes(event => {
     event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'mcwholidays:single_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 288 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/mcw_single')
     event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'mcwholidays:couple_bells' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 576 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/mcw_couple')
 
+    // GOLDEN CARROT — 8 gold nuggets (0.89 gold, rounded to 8 nuggets)
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:golden_carrot' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 80 }] }).id('allthemods:productive_metalworks/foundry/carrot/gold')
+
+    // LODESTONE — 1.21.1 recipe: 8 chiseled stone bricks + 1 NETHERITE ingot (stone is not metal;
+    // the 1.21.5 iron-recipe change postdates ATM10's MC version)
+    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:lodestone' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_netherite', amount: 90 }] }).id('allthemods:productive_metalworks/foundry/lodestone/netherite')
+
     // QUARTZ BLOCKS — 4 quartz each (gem: 100 mB/unit)
     event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:quartz_block' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/block')
     event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:chiseled_quartz_block' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/chiseled')
