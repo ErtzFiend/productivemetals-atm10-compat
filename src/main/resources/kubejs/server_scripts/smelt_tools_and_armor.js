@@ -86,7 +86,7 @@ function nameOf(id) {
 // suffix-token matching only -- substring matches ('hat' in 'hatch', 'boots' in
 // 'boots_tome') invent melting recipes for machine hatches and books
 function getToolType(id) {
-    const name = nameOf(id)
+    var name = nameOf(id)
     if (name === 'pickaxe' || name.endsWith('_pickaxe')) return 'pickaxe'
     if (name === 'axe' || name.endsWith('_axe') || name.endsWith('axe') || name.endsWith('_hatchet')) return 'axe'
     if (name === 'shovel' || name.endsWith('_shovel')) return 'shovel'
@@ -96,7 +96,7 @@ function getToolType(id) {
 }
 
 function getArmorType(id) {
-    const name = nameOf(id)
+    var name = nameOf(id)
     // helmet-class: _helmet/_hat/_mask/_crown/_hood (a kitchen_hood melting is
     // acceptable noise: the block is made of ingots)
     if (name === 'helmet' || name.endsWith('_helmet') || name.endsWith('_hat') || name.endsWith('_mask') || name.endsWith('_crown') || name.endsWith('_hood')) return 'helmet'
@@ -108,7 +108,7 @@ function getArmorType(id) {
 
 // item id -> metal. Glass is never the tool's material (keeps #c:glass_blocks out).
 function metalFromId(id) {
-    const name = nameOf(id)
+    var name = nameOf(id)
     if (!name || name.includes('glass')) return null
     for (const alias of Object.keys(ALIASES)) {
         if (name === alias || name.startsWith(alias + '_')) return ALIASES[alias]
@@ -124,8 +124,8 @@ function metalFromId(id) {
 
 // tag id -> metal (c:ingots/gold -> gold, c:gems/diamond -> diamond)
 function metalFromTag(tagId) {
-    const parts = String(tagId).split('/')
-    const last = parts[parts.length - 1]
+    var parts = String(tagId).split('/')
+    var last = parts[parts.length - 1]
     return (last && last in METALS) ? last : null
 }
 
@@ -143,30 +143,36 @@ function mergeMetal(cur, next) {
     return cur === next ? cur : 'MULTI'
 }
 
-// --- scan one recipe and return { outId, slot, metal } when it should melt ---
+// --- scan one recipe and return an object when it should melt ---
 function analyzeRecipe(recipe, errors) {
+    // Rhino hoists let/const in this function to enclosing scope and throws
+    // "redeclaration" when the function runs again, so use var (legal to redeclare)
+    // and declare everything up front.
+    var typeMatch, type, resultStack, outId, slot
+    var metal = null
+    var keyObj, entry, value, el, matched, arrObj, json
+    var ingredients, ing, holders, holder, loc
+
     if (!recipe) return null
 
     // recipe type lives only in toString(): "id[type]"
-    const typeMatch = /\[([^\]]+)\]$/.exec(String(recipe))
+    typeMatch = /\[([^\]]+)\]$/.exec(String(recipe))
     if (!typeMatch) return null
-    const type = typeMatch[1]
+    type = typeMatch[1]
     if (type !== 'minecraft:crafting_shaped' && type !== 'minecraft:crafting_shapeless') return null
 
-    const resultStack = recipe.originalRecipeResult
+    resultStack = recipe.originalRecipeResult
     if (!resultStack) return null
-    const outId = String(resultStack.id)
+    outId = String(resultStack.id)
     if (!outId || outId === 'minecraft:air') return null
 
-    const slot = getToolType(outId) || getArmorType(outId)
+    slot = getToolType(outId) || getArmorType(outId)
     if (!slot) return null
 
     // Rhino: loop-local values are declared once here, assigned inside the loops
-let metal = null
-    let keyObj, entry, value, el, matched
-    let ingredients, ing, holders, holder, loc
+    json = null
     try {
-        const json = recipe.originalJson
+        json = recipe.originalJson
         if (json) {
             keyObj = json.get('key')
             if (keyObj && keyObj.isJsonObject()) {
@@ -178,7 +184,7 @@ let metal = null
                     }
                 }
             }
-            const arrObj = json.get('ingredients')
+            arrObj = json.get('ingredients')
             if (arrObj && arrObj.isJsonArray()) {
                 for (el of arrObj) {
                     if (el && el.isJsonObject()) {
@@ -214,7 +220,7 @@ let metal = null
     }
 
     if (!metal || metal === 'MULTI') return null
-    return { outId, slot, metal }
+    return { outId: outId, slot: slot, metal: metal }
 }
 
 ServerEvents.recipes(event => {

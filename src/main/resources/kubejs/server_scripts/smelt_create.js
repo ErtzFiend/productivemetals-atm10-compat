@@ -4,17 +4,19 @@
 // rod/wire 45, storage block 810, spool 135. Items PMW already melts through its own
 // tags (ingots/plates/nuggets/storage blocks of zinc, steel, bronze, ...) are not re-added.
 
-const FLUIDS = {
-    brass: 'productivemetalworks:molten_brass',
-    copper: 'productivemetalworks:molten_copper',
-    electrum: 'productivemetalworks:molten_electrum',
-    gold: 'productivemetalworks:molten_gold',
-    iron: 'productivemetalworks:molten_iron',
-    netherite: 'productivemetalworks:molten_netherite',
-    zinc: 'productivemetalworks:molten_zinc',
-}
-
+// FLUIDS is scoped INSIDE the event callback on purpose: top-level const names are
+// shared across every script in KubeJS's Rhino scope, and two files both declaring
+// `const FLUIDS` silently kill the alphabetically-later one with a redeclaration error.
 ServerEvents.recipes(event => {
+    const FLUIDS = {
+        brass: 'productivemetalworks:molten_brass',
+        copper: 'productivemetalworks:molten_copper',
+        electrum: 'productivemetalworks:molten_electrum',
+        gold: 'productivemetalworks:molten_gold',
+        iron: 'productivemetalworks:molten_iron',
+        netherite: 'productivemetalworks:molten_netherite',
+        zinc: 'productivemetalworks:molten_zinc',
+    }
     // hand-verified metal content: [item, metal, mB]
     const BESPOKE = [
         ['create:andesite_alloy', 'iron', 10],

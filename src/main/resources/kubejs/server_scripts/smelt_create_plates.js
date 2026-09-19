@@ -3,24 +3,27 @@
 // = 90 mB, so an item melts for (plates in recipe x 90) / recipe output count, floored
 // to a multiple of 5 mB (minimum 5). Items made from 2+ different plates are skipped -
 // there is no honest single fluid for them.
-
-const FLUIDS = {
-    brass: 'productivemetalworks:molten_brass',
-    copper: 'productivemetalworks:molten_copper',
-    gold: 'productivemetalworks:molten_gold',
-    iron: 'productivemetalworks:molten_iron',
-    lead: 'productivemetalworks:molten_lead',
-    obsidian: 'productivemetalworks:molten_obsidian',
-    platinum: 'productivemetalworks:molten_platinum',
-    steel: 'productivemetalworks:molten_steel',
-    zinc: 'productivemetalworks:molten_zinc',
-}
+//
+// FLUIDS is scoped INSIDE the event callback on purpose: top-level const names are
+// shared across every script in KubeJS's Rhino scope, and two files both declaring
+// `const FLUIDS` silently kill the alphabetically-later one with a redeclaration error.
 
 function meltAmount(plates, outputs) {
     return Math.max(5, Math.floor(plates * 90 / outputs / 5) * 5)
 }
 
 ServerEvents.recipes(event => {
+    const FLUIDS = {
+        brass: 'productivemetalworks:molten_brass',
+        copper: 'productivemetalworks:molten_copper',
+        gold: 'productivemetalworks:molten_gold',
+        iron: 'productivemetalworks:molten_iron',
+        lead: 'productivemetalworks:molten_lead',
+        obsidian: 'productivemetalworks:molten_obsidian',
+        platinum: 'productivemetalworks:molten_platinum',
+        steel: 'productivemetalworks:molten_steel',
+        zinc: 'productivemetalworks:molten_zinc',
+    }
     // plate-crafted items: [item, plates in recipe, recipe output count, metal]
     const PLATE_CRAFTED = [
         ['aeronautics_utility_objects:damping_stress_bearing', 1, 1, 'copper'],
