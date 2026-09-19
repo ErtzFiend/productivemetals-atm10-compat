@@ -9,13 +9,13 @@ version="${file.jarVersion}"
 displayName="ProductiveMetals ATM10 Compat"
 authors="ErtzFiend"
 description='''
-All The Mods 10 custom smelting/casting content, packaged as a mod.
-Requires KubeJS (scripts are bundled in kubejs/server_scripts and loaded
-automatically). Adds Productive Metalworks melting recipes for every
-ingot/gem tool & armor piece, melting for misc metal items (cauldrons,
-buckets, anvils, minecarts, crossbows, golden apples), the quartz
-block/stairs/slab family, and a molten-carbon -> coal-block casting-basin
-recipe.
+All The Mods 10 custom melting/casting content, packaged as a mod.
+Requires KubeJS (scripts are bundled in kubejs/server_scripts and extracted
+automatically on start). Adds Productive Metalworks melting recipes for every
+ingot/gem tool & armor piece, misc metal items (cauldrons, buckets, anvils,
+shears, minecarts, crossbows, golden apples), the quartz block family,
+Create-family items (coins, wires, rods, plates-crafted machines), and a
+molten-carbon -> coal-block casting-basin recipe.
 '''
 
 [[dependencies.productivemetalsatm10compat]]

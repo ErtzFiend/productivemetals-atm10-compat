@@ -1,68 +1,69 @@
-// This File has been authored by AllTheMods Staff, or a Community contributor for use in AllTheMods - AllTheMods 10.
-// As all AllTheMods packs are licensed under All Rights Reserved, this file is not allowed to be used in any public packs not released by the AllTheMods Team, without explicit permission.
+// smelt_tools_and_armor.js
+// Scans every crafting recipe at load and adds a Productive Metalworks melt for any
+// tool or armor piece whose recipe is made of a single meltable material.
 //
-// Melts ingot-based tools and armor into their component molten fluids via Productive Metalworks.
-// FINAL 2026-08-27 (verified live on LLMServer): every accessor below was probe-verified against
-// KubeJS 2101.7.2-build.368 at runtime:
-//   - values are RAW vanilla Recipe objects (NOT KubeRecipes): kjs$getType()/type/kjs$getTypeKey() DO NOT exist.
-//   - recipe type comes from String(recipe) -> "id[type]"
-//   - output item id: recipe.originalRecipeResult.id
-//   - ingredients: recipe.originalRecipeIngredients (Java List<Ingredient>) -> ing.getItems() -> st.id
-//   - Rhino (KubeJS) quirk: `const` inside a loop body is hoisted to function scope and RE-declared
-//     on the 2nd iteration ("redeclaration of var x") -> every loop-local is declared ONCE at the top.
-//   - undeclared loop variables (for (x of ...) without let/const) throw ReferenceError in strict mode.
+// Rates: 90 mB per ingot, 100 mB per gem unit. Slot costs (ingots): pickaxe 3, axe 3,
+// shovel 1, hoe 2, sword 2, helmet 5, chestplate 8, leggings 7, boots 4.
 //
-// Recipe JSON mirrors PMW's own files exactly: result is an ARRAY of {id, amount}, temperature keys
-// are minimum_temperature/maximum_temperature (1000 standard, 3000 for the ATM trio).
-// Yields: 90 mB/ingot, 100 mB/gem. Slots: helmet=5, chestplate=8, leggings=7, boots=4,
-// pickaxe=3, axe=3, shovel=1, hoe=2, sword=2.
+// Runtime notes (KubeJS 2101.7.x on NeoForge 1.21.1, probe-verified):
+//   - event.originalRecipes holds RAW vanilla Recipe objects. The recipe type only
+//     appears in String(recipe) as "id[type]", the output is recipe.originalRecipeResult,
+//     and ingredients don't resolve via getItems() - so the metal is read from the recipe
+//     JSON instead ("key" for shaped, "ingredients" for shapeless, ingredient-holder keys
+//     as fallback).
+//   - Rhino hoists `const` inside loop bodies to function scope and re-declares it on the
+//     next iteration, which throws. Loop variables are therefore declared once per
+//     function and analysis lives in analyzeRecipe(), whose locals are fresh per call.
+//   - Vanilla netherite gear is smithing-only (no crafting recipe to scan), so those nine
+//     pieces are listed explicitly below.
 
-const VOLUME_PER_INGOT = 90 // PMW default: 90 mB per ingot (NOT 144)
-const VOLUME_PER_GEM = 100  // PMW gem melts (diamond/emerald/lapis/quartz/amethyst): 100 mB per unit
+const VOLUME_PER_INGOT = 90
+const VOLUME_PER_GEM = 100
 
-// metal_name -> { fluid, temp, gem? } (fluid ids follow Productive Metalworks / Allthemodium conventions)
+// metal name -> { fluid, temperature, gem? } (fluid ids follow Productive Metalworks
+// / Allthemodium conventions; the ATM trio melts at 3000 K, everything else at 1000)
 const METALS = {
-    iron:         { fluid: 'productivemetalworks:molten_iron',        temp: 1000 },
-    gold:         { fluid: 'productivemetalworks:molten_gold',        temp: 1000 },
-    copper:       { fluid: 'productivemetalworks:molten_copper',      temp: 1000 },
-    netherite:    { fluid: 'productivemetalworks:molten_netherite',   temp: 1000 },
-    diamond:      { fluid: 'productivemetalworks:molten_diamond',     temp: 1000, gem: true },
-    emerald:      { fluid: 'productivemetalworks:molten_emerald',     temp: 1000, gem: true },
-    amethyst:     { fluid: 'productivemetalworks:molten_amethyst',    temp: 1000, gem: true },
-    lapis:        { fluid: 'productivemetalworks:molten_lapis',       temp: 1000, gem: true },
-    quartz:       { fluid: 'productivemetalworks:molten_quartz',      temp: 1000, gem: true },
-    redstone:     { fluid: 'productivemetalworks:molten_redstone',    temp: 1000, gem: true },
-    obsidian:     { fluid: 'productivemetalworks:molten_obsidian',    temp: 1000 },
-    glowstone:    { fluid: 'productivemetalworks:molten_glowstone',   temp: 1000 },
-    magma:        { fluid: 'productivemetalworks:molten_magma_cream', temp: 1000 },
-    blaze:        { fluid: 'productivemetalworks:molten_blaze',       temp: 1000 },
-    ender:        { fluid: 'productivemetalworks:molten_ender',       temp: 1000 },
-    slime:        { fluid: 'productivemetalworks:molten_slime',       temp: 1000 },
-    aluminum:     { fluid: 'productivemetalworks:molten_aluminum',    temp: 1000 },
-    brass:        { fluid: 'productivemetalworks:molten_brass',       temp: 1000 },
-    bronze:       { fluid: 'productivemetalworks:molten_bronze',      temp: 1000 },
-    constantan:   { fluid: 'productivemetalworks:molten_constantan',  temp: 1000 },
-    electrum:     { fluid: 'productivemetalworks:molten_electrum',    temp: 1000 },
-    enderium:     { fluid: 'productivemetalworks:molten_enderium',    temp: 1000 },
-    invar:        { fluid: 'productivemetalworks:molten_invar',       temp: 1000 },
-    iridium:      { fluid: 'productivemetalworks:molten_iridium',     temp: 1000 },
-    lead:         { fluid: 'productivemetalworks:molten_lead',        temp: 1000 },
-    lumium:       { fluid: 'productivemetalworks:molten_lumium',      temp: 1000 },
-    nickel:       { fluid: 'productivemetalworks:molten_nickel',      temp: 1000 },
-    osmium:       { fluid: 'productivemetalworks:molten_osmium',      temp: 1000 },
-    platinum:     { fluid: 'productivemetalworks:molten_platinum',    temp: 1000 },
-    signalum:     { fluid: 'productivemetalworks:molten_signalum',    temp: 1000 },
-    silver:       { fluid: 'productivemetalworks:molten_silver',      temp: 1000 },
-    steel:        { fluid: 'productivemetalworks:molten_steel',       temp: 1000 },
-    tin:          { fluid: 'productivemetalworks:molten_tin',         temp: 1000 },
-    uranium:      { fluid: 'productivemetalworks:molten_uranium',     temp: 1000 },
-    zinc:         { fluid: 'productivemetalworks:molten_zinc',        temp: 1000 },
+    iron:      { fluid: 'productivemetalworks:molten_iron',      temp: 1000 },
+    gold:      { fluid: 'productivemetalworks:molten_gold',      temp: 1000 },
+    copper:    { fluid: 'productivemetalworks:molten_copper',    temp: 1000 },
+    netherite: { fluid: 'productivemetalworks:molten_netherite', temp: 1000 },
+    diamond:   { fluid: 'productivemetalworks:molten_diamond',   temp: 1000, gem: true },
+    emerald:   { fluid: 'productivemetalworks:molten_emerald',   temp: 1000, gem: true },
+    amethyst:  { fluid: 'productivemetalworks:molten_amethyst',  temp: 1000, gem: true },
+    lapis:     { fluid: 'productivemetalworks:molten_lapis',     temp: 1000, gem: true },
+    quartz:    { fluid: 'productivemetalworks:molten_quartz',    temp: 1000, gem: true },
+    redstone:  { fluid: 'productivemetalworks:molten_redstone',  temp: 1000, gem: true },
+    obsidian:  { fluid: 'productivemetalworks:molten_obsidian',  temp: 1000 },
+    glowstone: { fluid: 'productivemetalworks:molten_glowstone', temp: 1000 },
+    magma:     { fluid: 'productivemetalworks:molten_magma_cream', temp: 1000 },
+    blaze:     { fluid: 'productivemetalworks:molten_blaze',     temp: 1000 },
+    ender:     { fluid: 'productivemetalworks:molten_ender',     temp: 1000 },
+    slime:     { fluid: 'productivemetalworks:molten_slime',     temp: 1000 },
+    aluminum:  { fluid: 'productivemetalworks:molten_aluminum',  temp: 1000 },
+    brass:     { fluid: 'productivemetalworks:molten_brass',     temp: 1000 },
+    bronze:    { fluid: 'productivemetalworks:molten_bronze',    temp: 1000 },
+    constantan: { fluid: 'productivemetalworks:molten_constantan', temp: 1000 },
+    electrum:  { fluid: 'productivemetalworks:molten_electrum',  temp: 1000 },
+    enderium:  { fluid: 'productivemetalworks:molten_enderium',  temp: 1000 },
+    invar:     { fluid: 'productivemetalworks:molten_invar',     temp: 1000 },
+    iridium:   { fluid: 'productivemetalworks:molten_iridium',   temp: 1000 },
+    lead:      { fluid: 'productivemetalworks:molten_lead',      temp: 1000 },
+    lumium:    { fluid: 'productivemetalworks:molten_lumium',    temp: 1000 },
+    nickel:    { fluid: 'productivemetalworks:molten_nickel',    temp: 1000 },
+    osmium:    { fluid: 'productivemetalworks:molten_osmium',    temp: 1000 },
+    platinum:  { fluid: 'productivemetalworks:molten_platinum',  temp: 1000 },
+    signalum:  { fluid: 'productivemetalworks:molten_signalum',  temp: 1000 },
+    silver:    { fluid: 'productivemetalworks:molten_silver',    temp: 1000 },
+    steel:     { fluid: 'productivemetalworks:molten_steel',     temp: 1000 },
+    tin:       { fluid: 'productivemetalworks:molten_tin',       temp: 1000 },
+    uranium:   { fluid: 'productivemetalworks:molten_uranium',   temp: 1000 },
+    zinc:      { fluid: 'productivemetalworks:molten_zinc',      temp: 1000 },
     allthemodium: { fluid: 'allthemodium:molten_allthemodium', temp: 3000 },
-    vibranium:    { fluid: 'allthemodium:molten_vibranium',    temp: 3000 },
-    unobtainium:  { fluid: 'allthemodium:molten_unobtainium',  temp: 3000 },
+    vibranium: { fluid: 'allthemodium:molten_vibranium', temp: 3000 },
+    unobtainium: { fluid: 'allthemodium:molten_unobtainium', temp: 3000 },
 }
 
-// vanilla (and many mods) use "golden_*" for gold items: golden_chestplate, golden_pickaxe, ...
+// vanilla (and many mods) name gold items "golden_*": golden_chestplate, golden_pickaxe...
 const ALIASES = { golden: 'gold' }
 
 const COUNT_BY_SLOT = {
@@ -70,7 +71,7 @@ const COUNT_BY_SLOT = {
     helmet: 5, chestplate: 8, leggings: 7, boots: 4,
 }
 
-// Vanilla netherite gear has NO crafting recipe (smithing-only) so the recipe scan can't see it.
+// smithing-only gear has no crafting recipe, so the scan can never see it
 const NETHERITE_GEAR = {
     'minecraft:netherite_pickaxe': 3, 'minecraft:netherite_axe': 3, 'minecraft:netherite_shovel': 1,
     'minecraft:netherite_hoe': 2, 'minecraft:netherite_sword': 2,
@@ -82,10 +83,10 @@ function nameOf(id) {
     return String(id).split(':').pop()
 }
 
+// suffix-token matching only -- substring matches ('hat' in 'hatch', 'boots' in
+// 'boots_tome') invent melting recipes for machine hatches and books
 function getToolType(id) {
     const name = nameOf(id)
-    // suffix-token matching ONLY — substring ('hat' in 'hatch', 'boots' in 'boots_tome') creates
-    // bogus melting recipes for machine hatches / books / blocks. pickaxe must precede axe.
     if (name === 'pickaxe' || name.endsWith('_pickaxe')) return 'pickaxe'
     if (name === 'axe' || name.endsWith('_axe') || name.endsWith('axe') || name.endsWith('_hatchet')) return 'axe'
     if (name === 'shovel' || name.endsWith('_shovel')) return 'shovel'
@@ -96,8 +97,8 @@ function getToolType(id) {
 
 function getArmorType(id) {
     const name = nameOf(id)
-    // helmet-class: _helmet/_hat/_mask/_crown/_hood (suffix tokens only — 'kitchen_hood' is a block
-    // but still ends '_hood'; acceptable noise, it is made of ingots)
+    // helmet-class: _helmet/_hat/_mask/_crown/_hood (a kitchen_hood melting is
+    // acceptable noise: the block is made of ingots)
     if (name === 'helmet' || name.endsWith('_helmet') || name.endsWith('_hat') || name.endsWith('_mask') || name.endsWith('_crown') || name.endsWith('_hood')) return 'helmet'
     if (name === 'chestplate' || name.endsWith('_chestplate') || name.endsWith('_body') || name.endsWith('_tunic')) return 'chestplate'
     if (name === 'leggings' || name.endsWith('_leggings') || name.endsWith('_pants')) return 'leggings'
@@ -105,30 +106,27 @@ function getArmorType(id) {
     return null
 }
 
+// item id -> metal. Glass is never the tool's material (keeps #c:glass_blocks out).
 function metalFromId(id) {
     const name = nameOf(id)
-    if (!name) return null
-    // glass is never the tool's metal — prevents #c:glass_blocks pollution (ae2:quartz_glass etc.)
-    if (name.includes('glass')) return null
-    // aliases first so golden_* resolves to gold before prefix checks
-    for (const a of Object.keys(ALIASES)) {
-        if (name === a || name.startsWith(a + '_')) return ALIASES[a]
+    if (!name || name.includes('glass')) return null
+    for (const alias of Object.keys(ALIASES)) {
+        if (name === alias || name.startsWith(alias + '_')) return ALIASES[alias]
     }
     for (const metal of Object.keys(METALS)) {
-        if (name === metal) return metal                  // minecraft:diamond
-        if (name === metal + '_ingot') return metal       // minecraft:iron_ingot
-        if (name.endsWith('_' + metal)) return metal      // suffix variant
-        if (name.startsWith(metal + '_')) return metal    // netherite_chestplate, copper_sword
+        if (name === metal) return metal               // minecraft:diamond
+        if (name === metal + '_ingot') return metal    // minecraft:iron_ingot
+        if (name.endsWith('_' + metal)) return metal
+        if (name.startsWith(metal + '_')) return metal // netherite_chestplate, copper_sword
     }
     return null
 }
 
-// Tag ingredient -> metal (c:ingots/gold -> gold, c:gems/diamond -> diamond, ...)
+// tag id -> metal (c:ingots/gold -> gold, c:gems/diamond -> diamond)
 function metalFromTag(tagId) {
     const parts = String(tagId).split('/')
     const last = parts[parts.length - 1]
-    if (!last) return null
-    return (last in METALS) ? last : null
+    return (last && last in METALS) ? last : null
 }
 
 // JsonObject ingredient ({item: ...} or {tag: ...}) -> metal
@@ -139,218 +137,194 @@ function metalFromJsonObj(obj) {
     return null
 }
 
+// two different metals in one recipe -> MULTI (no honest single fluid, skip the item)
 function mergeMetal(cur, next) {
     if (!cur) return next
-    if (cur === next) return cur
-    return 'MULTI'
+    return cur === next ? cur : 'MULTI'
+}
+
+// --- scan one recipe and return { outId, slot, metal } when it should melt ---
+function analyzeRecipe(recipe, errors) {
+    if (!recipe) return null
+
+    // recipe type lives only in toString(): "id[type]"
+    const typeMatch = /\[([^\]]+)\]$/.exec(String(recipe))
+    if (!typeMatch) return null
+    const type = typeMatch[1]
+    if (type !== 'minecraft:crafting_shaped' && type !== 'minecraft:crafting_shapeless') return null
+
+    const resultStack = recipe.originalRecipeResult
+    if (!resultStack) return null
+    const outId = String(resultStack.id)
+    if (!outId || outId === 'minecraft:air') return null
+
+    const slot = getToolType(outId) || getArmorType(outId)
+    if (!slot) return null
+
+    // Rhino: loop-local values are declared once here, assigned inside the loops
+let metal = null
+    let keyObj, entry, value, el, matched
+    let ingredients, ing, holders, holder, loc
+    try {
+        const json = recipe.originalJson
+        if (json) {
+            keyObj = json.get('key')
+            if (keyObj && keyObj.isJsonObject()) {
+                for (entry of keyObj.entrySet()) {
+                    value = entry.getValue()
+                    if (value && value.isJsonObject()) {
+                        matched = metalFromJsonObj(value.getAsJsonObject())
+                        if (matched) metal = mergeMetal(metal, matched)
+                    }
+                }
+            }
+            const arrObj = json.get('ingredients')
+            if (arrObj && arrObj.isJsonArray()) {
+                for (el of arrObj) {
+                    if (el && el.isJsonObject()) {
+                        matched = metalFromJsonObj(el.getAsJsonObject())
+                        if (matched) metal = mergeMetal(metal, matched)
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        if (errors.length < 10) errors.push('jsonPath: ' + String(e))
+    }
+
+    if (!metal) {
+        ingredients = recipe.originalRecipeIngredients
+        if (ingredients) {
+            for (ing of ingredients) {
+                if (!ing) continue
+                try {
+                    holders = ing.getValues()
+                    if (holders) {
+                        for (holder of holders) {
+                            try {
+                                loc = String(holder.getKey().location())
+                                matched = metalFromId(loc)
+                                if (matched) metal = mergeMetal(metal, matched)
+                            } catch (e) {}
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    if (!metal || metal === 'MULTI') return null
+    return { outId, slot, metal }
 }
 
 ServerEvents.recipes(event => {
-    // NOTE: event.recipes is the recipe-BUILDER namespace (event.recipes.minecraft.crafting_shaped),
-    // NOT the recipe list. The full recipe map is event.originalRecipes (Map<RL, Recipe>).
-    // Its values are RAW vanilla Recipe objects — kjs$getType()/type DO NOT exist on them.
+    // NOTE: event.recipes is the recipe-BUILDER namespace. The registry itself is
+    // event.originalRecipes (Map<ResourceLocation, Recipe>), value type RAW vanilla
+    // Recipe -- kjs$getType()/type do not exist on them.
     const values = (event.originalRecipes && event.originalRecipes.values) ? event.originalRecipes.values() : []
     const toAdd = []
+    const perMetal = {}
+    const errors = []
     let count = 0
     let skipped = 0
-    const perMetal = {}
     let goldChestplate = false
-    const errors = []
-    // Rhino quirk: `const` inside a loop body is hoisted + RE-declared each iteration, and undeclared
-    // for-of vars throw in strict mode — so every loop-local is declared ONCE up here.
-    let recipe, typeStr, typeMatch, resultStack, outId, slot, expected, matchedMetal
-    let ingredients, ing, stacks, st, stId, metal, info, amount, outName, recipeId
-    let itemId, units, nslot, ni
-    let rec, rid
-    let j, keyObj, arrObj, e2, v2, m2, el2, vs, h, loc
+    let recipe, result, info, meta, itemId, units, slot, id
 
     for (recipe of values) {
         count++
         try {
-            if (!recipe) continue
-            // recipe type is embedded in toString(): "id[type]"
-            typeStr = String(recipe)
-            typeMatch = /\[([^\]]+)\]$/.exec(typeStr)
-            if (!typeMatch) continue
-            typeStr = typeMatch[1]
-            if (typeStr !== 'minecraft:crafting_shaped' && typeStr !== 'minecraft:crafting_shapeless') continue
-
-            resultStack = recipe.originalRecipeResult
-            if (!resultStack) continue
-            outId = String(resultStack.id)
-            if (!outId || outId === 'minecraft:air') continue
-
-            slot = getToolType(outId) || getArmorType(outId)
-            if (!slot) continue
-            expected = COUNT_BY_SLOT[slot]
-
-            // detect the single metal among the recipe's ingredients.
-            // getItems() returns EMPTY for these recipe objects (unresolved), so read the
-            // raw JSON ingredient definitions (recipe.originalJson) — item or tag form —
-            // and fall back to the ingredient holder set (getValues() -> holder keys).
-            matchedMetal = null
-            try {
-                j = recipe.originalJson
-                if (j) {
-                    keyObj = j.get('key')
-                    if (keyObj && keyObj.isJsonObject()) {
-                        for (e2 of keyObj.entrySet()) {
-                            v2 = e2.getValue()
-                            if (v2 && v2.isJsonObject()) {
-                                m2 = metalFromJsonObj(v2.getAsJsonObject())
-                                if (m2) matchedMetal = mergeMetal(matchedMetal, m2)
-                            }
-                        }
-                    }
-                    arrObj = j.get('ingredients')
-                    if (arrObj && arrObj.isJsonArray()) {
-                        for (el2 of arrObj) {
-                            if (el2 && el2.isJsonObject()) {
-                                m2 = metalFromJsonObj(el2.getAsJsonObject())
-                                if (m2) matchedMetal = mergeMetal(matchedMetal, m2)
-                            }
-                        }
-                    }
-                }
-            } catch (e) { if (errors.length < 10) errors.push('jsonPath: ' + String(e)) }
-
-            if (!matchedMetal) {
-                ingredients = recipe.originalRecipeIngredients
-                if (ingredients) {
-                    for (ing of ingredients) {
-                        if (!ing) continue
-                        try {
-                            vs = ing.getValues()
-                            if (vs) {
-                                for (h of vs) {
-                                    try {
-                                        loc = String(h.getKey().location())
-                                        m2 = metalFromId(loc)
-                                        if (m2) matchedMetal = mergeMetal(matchedMetal, m2)
-                                    } catch (e) {}
-                                }
-                            }
-                        } catch (e) {}
-                    }
-                }
-            }
-            if (!matchedMetal || matchedMetal === 'MULTI') continue
-
-            info = METALS[matchedMetal]
+            result = analyzeRecipe(recipe, errors)
+            if (!result) continue
+            info = METALS[result.metal]
             if (!info) continue
-
-            amount = expected * (info.gem ? VOLUME_PER_GEM : VOLUME_PER_INGOT)
-            outName = outId.replace(':', '/')  // full path: mods share item names (3x copper_shovel)
-            recipeId = 'allthemods:productive_metalworks/melting/' + slot + '/' + matchedMetal + '/' + outName
-
             toAdd.push({
                 type: 'productivemetalworks:item_melting',
-                ingredient: { item: outId },
+                ingredient: { item: result.outId },
                 minimum_temperature: info.temp,
                 maximum_temperature: 0,
-                result: [{ id: info.fluid, amount: amount }],
-                id: recipeId,
+                result: [{ id: info.fluid, amount: COUNT_BY_SLOT[result.slot] * (info.gem ? VOLUME_PER_GEM : VOLUME_PER_INGOT) }],
+                // full path: different mods share item names (three copper shovels exist)
+                id: 'allthemods:productive_metalworks/melting/' + result.slot + '/' + result.metal + '/' + result.outId.replace(':', '/'),
             })
-
-            perMetal[matchedMetal] = (perMetal[matchedMetal] || 0) + 1
-            if (outId === 'minecraft:golden_chestplate' && matchedMetal === 'gold') goldChestplate = true
+            perMetal[result.metal] = (perMetal[result.metal] || 0) + 1
+            if (result.outId === 'minecraft:golden_chestplate' && result.metal === 'gold') goldChestplate = true
         } catch (e) {
             skipped++
             if (errors.length < 10) errors.push(String(e))
         }
     }
 
-    // vanilla netherite gear (smithing-only, no crafting recipe to scan)
-    ni = METALS.netherite
+    // netherite gear has no crafting recipe to scan; same slot costs apply
+    info = METALS.netherite
     for (itemId of Object.keys(NETHERITE_GEAR)) {
         units = NETHERITE_GEAR[itemId]
-        nslot = getToolType(itemId) || getArmorType(itemId)
-        if (!nslot) continue
+        slot = getToolType(itemId) || getArmorType(itemId)
+        if (!slot) continue
         toAdd.push({
             type: 'productivemetalworks:item_melting',
             ingredient: { item: itemId },
-            minimum_temperature: ni.temp,
+            minimum_temperature: info.temp,
             maximum_temperature: 0,
-            result: [{ id: ni.fluid, amount: units * VOLUME_PER_INGOT }],
-            id: 'allthemods:productive_metalworks/melting/' + nslot + '/netherite/' + itemId.split(':').pop(),
+            result: [{ id: info.fluid, amount: units * VOLUME_PER_INGOT }],
+            id: 'allthemods:productive_metalworks/melting/' + slot + '/netherite/' + itemId.split(':').pop(),
         })
         perMetal.netherite = (perMetal.netherite || 0) + 1
     }
 
-    // add AFTER the scan loop to avoid mutating the collection being iterated
-
-    // ==========================================
-    // PRODUCTIVE METALWORKS FOUNDRY: ADDITIONAL MELTING RECIPES (fixed 2026-08-29)
-    // Yields = crafting cost of the item, in the metal it is actually made of.
-    // 90 mB/ingot, 100 mB/quartz. Pattern matches the scan loop: id is set via .id(),
-    // never inside the JSON body (PMW's serializer rejects unknown keys).
-    // ==========================================
-
-    // CAULDRON — 7 iron ingots
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:cauldron' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 630 }] }).id('allthemods:productive_metalworks/foundry/cauldron/iron')
-
-    // BUCKET — 3 iron ingots
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:bucket' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 270 }] }).id('allthemods:productive_metalworks/foundry/bucket/iron')
-
-    // ANVILS — full 31 iron ingots (damage states melt the same)
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:anvil' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 2790 }] }).id('allthemods:productive_metalworks/foundry/anvil/iron')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:chipped_anvil' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 2790 }] }).id('allthemods:productive_metalworks/foundry/anvil/iron/chipped')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:damaged_anvil' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 2790 }] }).id('allthemods:productive_metalworks/foundry/anvil/iron/damaged')
-
-    // GOLDEN APPLES — 8 gold ingots; enchanted — 72 gold ingots (the apple itself is not metal)
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:golden_apple' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 720 }] }).id('allthemods:productive_metalworks/foundry/apple/gold')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:enchanted_golden_apple' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 6480 }] }).id('allthemods:productive_metalworks/foundry/apple/gold/enchanted')
-
-    // MINECARTS — 5 iron base; cart+carrier variants count the carrier's iron too
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:minecart' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 450 }] }).id('allthemods:productive_metalworks/foundry/minecart/iron')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:chest_minecart' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 450 }] }).id('allthemods:productive_metalworks/foundry/minecart/iron/chest')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:hopper_minecart' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 900 }] }).id('allthemods:productive_metalworks/foundry/minecart/iron/hopper')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:furnace_minecart' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 900 }] }).id('allthemods:productive_metalworks/foundry/minecart/iron/furnace')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:tnt_minecart' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 450 }] }).id('allthemods:productive_metalworks/foundry/minecart/iron/tnt')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:command_block_minecart' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 450 }] }).id('allthemods:productive_metalworks/foundry/minecart/iron/command_block')
-
-    // CROSSBOW — 1 iron ingot in the recipe
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:crossbow' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 90 }] }).id('allthemods:productive_metalworks/foundry/crossbow/iron')
-
-    // BELL — 6 gold ingots + stick (stick is not metal)
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 540 }] }).id('allthemods:productive_metalworks/foundry/bell/gold')
-
-    // CREATE BELLS — peculiar: brass block + brass plate = 10 ingots; haunted: haunting of peculiar (same metal);
-    // desk bell: andesite casing + 1 gold plate = 1 gold ingot
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'create:peculiar_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_brass', amount: 900 }] }).id('allthemods:productive_metalworks/foundry/bell/brass/peculiar')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'create:haunted_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_brass', amount: 900 }] }).id('allthemods:productive_metalworks/foundry/bell/brass/haunted')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'create:desk_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 90 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/desk')
-
-    // BIBLIOCRAFT DESK BELL — 4 iron ingots + stone button + redstone
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'bibliocraft:desk_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_iron', amount: 360 }] }).id('allthemods:productive_metalworks/foundry/bell/iron/bibliocraft_desk')
-
-    // MCW HOLIDAYS BELLS — single: 3 gold ingots + 2 nuggets = 3.2 gold; couple = 2 singles = 6.4 gold
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'mcwholidays:single_bell' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 288 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/mcw_single')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'mcwholidays:couple_bells' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 576 }] }).id('allthemods:productive_metalworks/foundry/bell/gold/mcw_couple')
-
-    // GOLDEN CARROT — 8 gold nuggets (0.89 gold, rounded to 8 nuggets)
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:golden_carrot' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_gold', amount: 80 }] }).id('allthemods:productive_metalworks/foundry/carrot/gold')
-
-    // LODESTONE — 1.21.1 recipe: 8 chiseled stone bricks + 1 NETHERITE ingot (stone is not metal;
-    // the 1.21.5 iron-recipe change postdates ATM10's MC version)
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:lodestone' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_netherite', amount: 90 }] }).id('allthemods:productive_metalworks/foundry/lodestone/netherite')
-
-    // QUARTZ BLOCKS — 4 quartz each (gem: 100 mB/unit)
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:quartz_block' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/block')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:chiseled_quartz_block' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/chiseled')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:quartz_pillar' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/pillar')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:quartz_bricks' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/bricks')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:smooth_quartz' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 400 }] }).id('allthemods:productive_metalworks/foundry/quartz/smooth')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:quartz_stairs' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 300 }] }).id('allthemods:productive_metalworks/foundry/quartz/stairs')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:quartz_slab' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 200 }] }).id('allthemods:productive_metalworks/foundry/quartz/slab')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:smooth_quartz_stairs' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 300 }] }).id('allthemods:productive_metalworks/foundry/quartz/smooth_stairs')
-    event.custom({ type: 'productivemetalworks:item_melting', ingredient: { item: 'minecraft:smooth_quartz_slab' }, minimum_temperature: 1000, maximum_temperature: 0, result: [{ id: 'productivemetalworks:molten_quartz', amount: 200 }] }).id('allthemods:productive_metalworks/foundry/quartz/smooth_slab')
-
-    for (rec of toAdd) {
-        rid = rec.id
-        delete rec.id
-        event.custom(rec).id(rid)
+    // utensils and odd items the name scan can never catch (no tool/armor slot).
+    // yields = crafting cost of the item; [item, metal, mB, id-suffix]
+    const FOUNDRY = [
+        ['minecraft:cauldron', 'iron', 630, 'cauldron/iron'],                  // 7 ingots
+        ['minecraft:bucket', 'iron', 270, 'bucket/iron'],                      // 3 ingots
+        ['minecraft:anvil', 'iron', 2790, 'anvil/iron'],                       // 31 ingots
+        ['minecraft:chipped_anvil', 'iron', 2790, 'anvil/iron/chipped'],
+        ['minecraft:damaged_anvil', 'iron', 2790, 'anvil/iron/damaged'],
+        ['minecraft:shears', 'iron', 180, 'shears/iron'],                      // 2 ingots
+        ['minecraft:crossbow', 'iron', 90, 'crossbow/iron'],                   // 1 iron ingot
+        ['minecraft:minecart', 'iron', 450, 'minecart/iron'],                  // 5 ingots
+        ['minecraft:chest_minecart', 'iron', 450, 'minecart/iron/chest'],
+        ['minecraft:hopper_minecart', 'iron', 900, 'minecart/iron/hopper'],    // + hopper
+        ['minecraft:furnace_minecart', 'iron', 900, 'minecart/iron/furnace'],  // + furnace
+        ['minecraft:tnt_minecart', 'iron', 450, 'minecart/iron/tnt'],
+        ['minecraft:command_block_minecart', 'iron', 450, 'minecart/iron/command_block'],
+        ['minecraft:golden_apple', 'gold', 720, 'apple/gold'],                 // 8 ingots
+        ['minecraft:enchanted_golden_apple', 'gold', 6480, 'apple/gold/enchanted'],
+        ['minecraft:golden_carrot', 'gold', 80, 'carrot/gold'],                // 8 nuggets
+        ['minecraft:bell', 'gold', 540, 'bell/gold'],                          // 6 gold + stick
+        ['minecraft:lodestone', 'netherite', 90, 'lodestone/netherite'],       // 1.21.1 recipe: 1 netherite ingot
+        ['minecraft:quartz_block', 'quartz', 400, 'quartz/block'],
+        ['minecraft:chiseled_quartz_block', 'quartz', 400, 'quartz/chiseled'],
+        ['minecraft:quartz_pillar', 'quartz', 400, 'quartz/pillar'],
+        ['minecraft:quartz_bricks', 'quartz', 400, 'quartz/bricks'],
+        ['minecraft:smooth_quartz', 'quartz', 400, 'quartz/smooth'],
+        ['minecraft:quartz_stairs', 'quartz', 300, 'quartz/stairs'],           // 3 quartz
+        ['minecraft:quartz_slab', 'quartz', 200, 'quartz/slab'],               // 2 quartz
+        ['minecraft:smooth_quartz_stairs', 'quartz', 300, 'quartz/smooth_stairs'],
+        ['minecraft:smooth_quartz_slab', 'quartz', 200, 'quartz/smooth_slab'],
+        ['create:peculiar_bell', 'brass', 900, 'bell/brass/peculiar'],         // brass block + plate
+        ['create:haunted_bell', 'brass', 900, 'bell/brass/haunted'],
+        ['create:desk_bell', 'gold', 90, 'bell/gold/desk'],                    // andesite casing + gold plate
+        ['bibliocraft:desk_bell', 'iron', 360, 'bell/iron/bibliocraft_desk'],  // 4 iron + button + redstone
+        ['mcwholidays:single_bell', 'gold', 288, 'bell/gold/mcw_single'],      // 3 gold + 2 nuggets
+        ['mcwholidays:couple_bells', 'gold', 576, 'bell/gold/mcw_couple'],     // 2 singles
+    ]
+    for (meta of FOUNDRY) {
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: meta[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: [{ id: METALS[meta[1]].fluid, amount: meta[2] }],
+            id: 'allthemods:productive_metalworks/foundry/' + meta[3],
+        })
     }
+
+    // register after the scan loop so we never mutate the collection being iterated
+        for (meta of toAdd) {
+            id = meta.id
+            delete meta.id
+            event.custom(meta).id(id)
+        }
 
     console.log('[PMW MeltToolsArmor] scanned ' + count + ' recipes, added ' + toAdd.length + ' melting recipes (skipped ' + skipped + ')')
     console.log('[PMW MeltToolsArmor] per-metal: ' + JSON.stringify(perMetal))
