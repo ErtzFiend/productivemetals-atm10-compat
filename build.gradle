@@ -4,7 +4,7 @@ plugins {
     id 'net.neoforged.gradle.userdev' version '7.0.171'
 }
 
-version = '1.4.3'
+version = '1.4.4'
 group = 'us.themilkfridge.atm10'
 
 base {

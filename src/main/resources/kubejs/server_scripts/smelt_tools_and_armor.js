@@ -237,7 +237,7 @@ ServerEvents.recipes(event => {
     let count = 0
     let skipped = 0
     let goldChestplate = false
-    let recipe, result, info, meta, itemId, units, slot, id
+    let recipe, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta
 
     for (recipe of values) {
         count++
@@ -328,6 +328,68 @@ ServerEvents.recipes(event => {
             id: 'allthemods:productive_metalworks/foundry/' + meta[3],
         })
     }
+
+    // --- lanterns ---
+    // Standard lantern = 8 nuggets around a torch = 80 mB (10 mB/nugget);
+    // Bibliocraft fancy/iron lanterns = 4 ingots around a candle = 360 mB.
+    // Chipped/mcw re-skins carry the iron they were cut from.
+    const LANTERNS = [
+        ['minecraft:lantern', 'iron', 80, 'vanilla/lantern'],
+        ['minecraft:soul_lantern', 'iron', 80, 'vanilla/soul_lantern'],
+        ['supplementaries:gold_lantern', 'gold', 80, 'supplementaries/gold'],
+        ['supplementaries:lead_lantern', 'lead', 80, 'supplementaries/lead'],
+        // mcw-lights: torch + 3-5 iron nuggets (wall = base + wooden fence)
+        ['mcwlights:bell_lantern', 'iron', 40, 'mcw/bell'], ['mcwlights:bell_wall_lantern', 'iron', 40, 'mcw/bell_wall'],
+        ['mcwlights:chain_lantern', 'iron', 40, 'mcw/chain'], ['mcwlights:chain_wall_lantern', 'iron', 40, 'mcw/chain_wall'],
+        ['mcwlights:covered_lantern', 'iron', 50, 'mcw/covered'], ['mcwlights:covered_wall_lantern', 'iron', 50, 'mcw/covered_wall'],
+        ['mcwlights:cross_lantern', 'iron', 40, 'mcw/cross'], ['mcwlights:cross_wall_lantern', 'iron', 40, 'mcw/cross_wall'],
+        ['mcwlights:festive_lantern', 'iron', 50, 'mcw/festive'], ['mcwlights:festive_wall_lantern', 'iron', 50, 'mcw/festive_wall'],
+        ['mcwlights:striped_lantern', 'iron', 30, 'mcw/striped'], ['mcwlights:striped_wall_lantern', 'iron', 30, 'mcw/striped_wall'],
+        ['mcwlights:tavern_lantern', 'iron', 30, 'mcw/tavern'], ['mcwlights:tavern_wall_lantern', 'iron', 30, 'mcw/tavern_wall'],
+        ['mcwlights:wall_lantern', 'iron', 80, 'mcw/wall'],
+        // chipped chiseled lanterns: the iron lantern re-cut (8 nuggets each)
+        ['chipped:big_lantern', 'iron', 80, 'chipped/big'], ['chipped:big_soul_lantern', 'iron', 80, 'chipped/big_soul'],
+        ['chipped:blue_tube_soul_lantern', 'iron', 80, 'chipped/blue_tube_soul'],
+        ['chipped:burning_coal_lantern', 'iron', 80, 'chipped/burning_coal'],
+        ['chipped:checkered_iron_lantern', 'iron', 80, 'chipped/checkered'], ['chipped:checkered_iron_soul_lantern', 'iron', 80, 'chipped/checkered_soul'],
+        ['chipped:donut_lantern', 'iron', 80, 'chipped/donut'], ['chipped:donut_soul_lantern', 'iron', 80, 'chipped/donut_soul'],
+        ['chipped:ender_lantern', 'iron', 80, 'chipped/ender'],
+        ['chipped:iron_bowl_lantern', 'iron', 80, 'chipped/iron_bowl'], ['chipped:iron_bowl_soul_lantern', 'iron', 80, 'chipped/iron_bowl_soul'],
+        ['chipped:small_green_lantern', 'iron', 80, 'chipped/small_green'], ['chipped:small_red_soul_lantern', 'iron', 80, 'chipped/small_red_soul'],
+        ['chipped:tall_lantern', 'iron', 80, 'chipped/tall'], ['chipped:tall_soul_lantern', 'iron', 80, 'chipped/tall_soul'],
+        ['chipped:wide_lantern', 'iron', 80, 'chipped/wide'], ['chipped:wide_soul_lantern', 'iron', 80, 'chipped/wide_soul'],
+        ['chipped:wooden_cage_lantern', 'iron', 80, 'chipped/wooden_cage'], ['chipped:wooden_cage_soul_lantern', 'iron', 80, 'chipped/wooden_cage_soul'],
+        ['chipped:wrought_iron_lantern', 'iron', 80, 'chipped/wrought_iron'], ['chipped:yellow_tube_lantern', 'iron', 80, 'chipped/yellow_tube'],
+        // bibliocraft fancy: 4 ingots of metal around a candle
+        ['bibliocraft:iron_lantern', 'iron', 360, 'bibliocraft/iron_lantern'],
+        ['bibliocraft:fancy_iron_lantern', 'iron', 360, 'bibliocraft/fancy_iron'],
+        ['bibliocraft:soul_fancy_iron_lantern', 'iron', 360, 'bibliocraft/soul_fancy_iron'],
+        ['bibliocraft:fancy_gold_lantern', 'gold', 360, 'bibliocraft/fancy_gold'],
+        ['bibliocraft:soul_fancy_gold_lantern', 'gold', 360, 'bibliocraft/soul_fancy_gold'],
+    ]
+    // everythingcopper: 8 copper nuggets; every oxidation/waxed state melts the same
+    for (lanState of ['', 'exposed_', 'weathered_', 'oxidized_']) {
+        for (lanWaxed of ['', 'waxed_']) {
+            LANTERNS.push(['everythingcopper:' + lanWaxed + lanState + 'copper_lantern', 'copper', 80, 'everythingcopper/' + (lanWaxed || '') + lanState + 'copper_lantern'])
+            LANTERNS.push(['everythingcopper:' + lanWaxed + lanState + 'copper_soul_lantern', 'copper', 80, 'everythingcopper/' + (lanWaxed || '') + lanState + 'soul'])
+        }
+    }
+    // bibliocraft fancy color grid: <color>_fancy_{gold|iron}_lantern
+    for (lanColor of ['black', 'blue', 'brown', 'cyan', 'gray', 'green', 'light_blue', 'light_gray', 'lime', 'magenta', 'orange', 'pink', 'purple', 'red', 'white', 'yellow']) {
+        LANTERNS.push(['bibliocraft:' + lanColor + '_fancy_iron_lantern', 'iron', 360, 'bibliocraft/' + lanColor + '_fancy_iron'])
+        LANTERNS.push(['bibliocraft:' + lanColor + '_fancy_gold_lantern', 'gold', 360, 'bibliocraft/' + lanColor + '_fancy_gold'])
+    }
+    for (lanMeta of LANTERNS) {
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: lanMeta[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: [{ id: METALS[lanMeta[1]].fluid, amount: lanMeta[2] }],
+            id: 'allthemods:productive_metalworks/foundry/lantern/' + lanMeta[3],
+        })
+    }
+    console.log('[PMW MeltToolsArmor] lanterns: ' + LANTERNS.length)
 
     // register after the scan loop so we never mutate the collection being iterated
         for (meta of toAdd) {
