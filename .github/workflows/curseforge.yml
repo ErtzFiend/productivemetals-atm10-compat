@@ -30,7 +30,7 @@ jobs:
           gradle-version: '8.14'
 
       - name: Build jar
-        run: ./gradlew --no-daemon build -x test
+        run: gradle --no-daemon build -x test
 
       - name: Upload to CurseForge
         env:
