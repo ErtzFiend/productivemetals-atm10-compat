@@ -69,6 +69,7 @@ jobs:
 
           CODE=$(curl -sS -o response.json -w "%{http_code}" \
             -H "x-api-key: $CF_API_KEY" \
+            -H "X-Api-Token: $CF_API_KEY" \
             -F "metadata=$METADATA" \
             -F "file=@$JAR" \
             "https://minecraft.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file")
