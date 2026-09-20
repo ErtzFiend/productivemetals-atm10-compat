@@ -69,6 +69,7 @@ const ALIASES = { golden: 'gold' }
 const COUNT_BY_SLOT = {
     pickaxe: 3, axe: 3, shovel: 1, hoe: 2, sword: 2,
     helmet: 5, chestplate: 8, leggings: 7, boots: 4,
+    gloves: 2,  // Aether-style "# #" gloves: 2 ingots / 2 gems
 }
 
 // smithing-only gear has no crafting recipe, so the scan can never see it
@@ -77,6 +78,7 @@ const NETHERITE_GEAR = {
     'minecraft:netherite_hoe': 2, 'minecraft:netherite_sword': 2,
     'minecraft:netherite_helmet': 5, 'minecraft:netherite_chestplate': 8,
     'minecraft:netherite_leggings': 7, 'minecraft:netherite_boots': 4,
+    'aether:netherite_gloves': 2,  // smithing of diamond_gloves + netherite ingot
 }
 
 function nameOf(id) {
@@ -103,6 +105,7 @@ function getArmorType(id) {
     if (name === 'chestplate' || name.endsWith('_chestplate') || name.endsWith('_body') || name.endsWith('_tunic')) return 'chestplate'
     if (name === 'leggings' || name.endsWith('_leggings') || name.endsWith('_pants')) return 'leggings'
     if (name === 'boots' || name.endsWith('_boots') || name.endsWith('_shoes')) return 'boots'
+    if (name === 'gloves' || name.endsWith('_gloves')) return 'gloves'
     return null
 }
 
