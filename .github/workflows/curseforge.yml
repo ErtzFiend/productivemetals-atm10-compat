@@ -50,7 +50,8 @@ jobs:
           if [ "$TAG" = "manual" ]; then
             CHANGELOG="$(git log -1 --format='%s')"
           else
-            CHANGELOG="$(git log --format='- %s' "$TAG"~1.."$TAG" 2>/dev/null || git log -1 --format='- %s')"
+            BASE=$(git describe --tags --abbrev=0 "$TAG"~1 2>/dev/null || echo "$TAG"~1)
+            CHANGELOG="$(git log --format='- %s' "$BASE".."$TAG" 2>/dev/null || git log -1 --format='- %s')"
           fi
           [ -n "$CHANGELOG" ] || CHANGELOG="Release $VERSION"
 
