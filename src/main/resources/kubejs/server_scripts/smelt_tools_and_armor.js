@@ -289,6 +289,7 @@ ServerEvents.recipes(event => {
         ['minecraft:chipped_anvil', 'iron', 2790, 'anvil/iron/chipped'],
         ['minecraft:damaged_anvil', 'iron', 2790, 'anvil/iron/damaged'],
         ['minecraft:shears', 'iron', 180, 'shears/iron'],                      // 2 ingots
+        ['everythingcopper:copper_horse_armor', 'copper', 540, 'horse_armor/copper'], // 6 ingots; one item id covers all oxidation/waxed states (NBT)
         ['minecraft:crossbow', 'iron', 90, 'crossbow/iron'],                   // 1 iron ingot
         ['minecraft:minecart', 'iron', 450, 'minecart/iron'],                  // 5 ingots
         ['minecraft:chest_minecart', 'iron', 450, 'minecart/iron/chest'],

@@ -14,8 +14,8 @@ ingot, 100 mB per gem.
 
 | Script | What it melts |
 |---|---|
-| `smelt_tools_and_armor.js` | Every tool, armor & glove piece, detected by scanning all crafting recipes at load (230 recipes on a loaded ATM10 world). Smithing-only gear (vanilla netherite, Aether's netherite gloves) is listed by hand since it has no crafting recipe. |
-| `smelt_tools_and_armor.js` (foundry section) | Misc items with no tool slot: cauldrons, buckets, anvils, shears, minecarts, crossbows, golden apples/carrots, bells, lodestone, the full quartz block family. |
+| `smelt_tools_and_armor.js` | Every tool, armor & glove piece, detected by scanning all crafting recipes at load (231 recipes on a loaded ATM10 world). Smithing-only gear (vanilla netherite, Aether's netherite gloves) is listed by hand since it has no crafting recipe. |
+| `smelt_tools_and_armor.js` (foundry section) | Misc items with no tool slot: cauldrons, buckets, anvils, shears, minecarts, crossbows, golden apples/carrots, bells, lodestone, copper horse armor (all oxidation/waxed states), the full quartz block family. |
 | `smelt_create.js` | Create-family items: andesite alloy, diving gear, casing, coins, wires, rods, spools (49 recipes). |
 | `smelt_create_plates.js` | Create-family items crafted from metal plates — girders, vaults, pipes, chutes, toolboxes, catwalks, thrusters, etc. (239 recipes). 1 plate = 1 ingot; yield = (plates x 90) ÷ recipe output count, floored to the nearest 5 mB. |
 | `carbon_basin_cast.js` | 900 mB molten carbon → coal block in the casting basin (the exact inverse of PMW's own coal-block melt). |
