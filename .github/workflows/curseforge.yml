@@ -32,6 +32,13 @@ jobs:
       - name: Build jar
         run: gradle --no-daemon build -x test
 
+      - name: Upload jar artifact (for manual browser uploads)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mod-jar
+          path: build/libs/productivemetals-atm10-compat-*.jar
+          if-no-files-found: error
+
       - name: Upload to CurseForge
         env:
           CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
