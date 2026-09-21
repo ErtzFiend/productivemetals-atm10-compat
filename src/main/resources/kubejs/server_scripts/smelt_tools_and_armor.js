@@ -238,7 +238,7 @@ ServerEvents.recipes(event => {
     let skipped = 0
     let goldChestplate = false
     let recipe, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta,
-        rcState, rcWaxed, rcFam, rcK, rail, results, rMeta, arsLan
+        rcState, rcWaxed, rcFam, rcK, rail, results, rMeta, arsLan, chState, chWaxed, uMeta
 
     for (recipe of values) {
         count++
@@ -330,6 +330,52 @@ ServerEvents.recipes(event => {
         })
     }
 
+    // --- smithing tables, flint & steel, chains (v1.6.0) ---
+    // All slot-less utility items, hand-written yields from each crafting recipe's
+    // metal share (ingot 90 mB, nugget 10 mB). Excluded: items whose material has no
+    // PMW molten fluid (enderio soul_chain = soularium, enderio cold_fire_igniter =
+    // dark_steel, forbidden_arcanus deorum_chain, eternal_starlight chain_of_souls,
+    // twilightforest block_and_chain = knightmetal) -- honest melts only.
+    // [item, [[metal, mB], ...], suffix]
+    const UTILITY = [
+        ['minecraft:smithing_table', [['iron', 180]], 'smithing_table/vanilla'],          // 2 iron ingots
+        ['crafting_on_a_stick:smithing_table', [['iron', 180]], 'smithing_table/on_a_stick'], // + stick (wood, unmelted)
+        ['minecraft:flint_and_steel', [['iron', 90]], 'flint_and_steel/vanilla'],         // 1 iron ingot
+        ['minecraft:chain', [['iron', 110]], 'chain/vanilla'],                            // 1 ingot + 2 nuggets
+        ['iceandfire:chain', [['iron', 330]], 'chain/iceandfire'],                        // 3 vanilla chains
+        ['iceandfire:chain_sticky', [['iron', 110]], 'chain/iceandfire/sticky'],          // 1 chain + slime ball
+        ['mcwlights:copper_chain', [['copper', 90]], 'chain/mcw/copper'],                 // 3 ingots -> 3 chains
+        ['mcwlights:golden_chain', [['gold', 90]], 'chain/mcw/golden'],                   // 3 ingots -> 3 chains
+        ['bibliocraft:gold_chain', [['gold', 110]], 'chain/bibliocraft/gold'],            // 1 ingot + 2 nuggets
+        ['ars_additions:golden_chain', [['iron', 20], ['gold', 90]], 'chain/ars/golden'], // 2 iron nuggets + gold ingot
+        ['ars_additions:archwood_chain', [['iron', 20]], 'chain/ars/archwood'],           // 2 iron nuggets
+        ['ars_additions:sourcestone_chain', [['iron', 20]], 'chain/ars/sourcestone'],
+        ['ars_additions:polished_sourcestone_chain', [['iron', 20]], 'chain/ars/polished_sourcestone'],
+    ]
+    // everythingcopper chains: 8 items (oxidation x waxed states), NBT-split like the
+    // lanterns/rails above -- one copper ingot + 2 nuggets each
+    for (chState of ['', 'exposed_', 'weathered_', 'oxidized_']) {
+        for (chWaxed of ['', 'waxed_']) {
+            UTILITY.push(['everythingcopper:' + chWaxed + chState + 'copper_chain', [['copper', 110]],
+                'chain/everythingcopper/' + (chWaxed ? chWaxed : '') + chState + 'copper_chain'])
+        }
+    }
+    let nUtility = 0
+    for (uMeta of UTILITY) {
+        results = []
+        for (rMeta of uMeta[1]) results.push({ id: METALS[rMeta[0]].fluid, amount: rMeta[1] })
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: uMeta[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: results,
+            id: 'allthemods:productive_metalworks/foundry/' + uMeta[2],
+        })
+        nUtility++
+    }
+    console.log('[PMW MeltToolsArmor] utility (smithing/flint&steel/chains): ' + nUtility)
+
     // --- lanterns ---
     // Standard lantern = 8 nuggets around a torch = 80 mB (10 mB/nugget);
     // Bibliocraft fancy/iron lanterns = 4 ingots around a candle = 360 mB.
@@ -337,8 +383,6 @@ ServerEvents.recipes(event => {
     const LANTERNS = [
         ['minecraft:lantern', 'iron', 80, 'vanilla/lantern'],
         ['minecraft:soul_lantern', 'iron', 80, 'vanilla/soul_lantern'],
-        ['supplementaries:gold_lantern', 'gold', 80, 'supplementaries/gold'],
-        ['supplementaries:lead_lantern', 'lead', 80, 'supplementaries/lead'],
         // mcw-lights: torch + 3-5 iron nuggets (wall = base + wooden fence)
         ['mcwlights:bell_lantern', 'iron', 40, 'mcw/bell'], ['mcwlights:bell_wall_lantern', 'iron', 40, 'mcw/bell_wall'],
         ['mcwlights:chain_lantern', 'iron', 40, 'mcw/chain'], ['mcwlights:chain_wall_lantern', 'iron', 40, 'mcw/chain_wall'],
@@ -362,7 +406,6 @@ ServerEvents.recipes(event => {
         ['chipped:wooden_cage_lantern', 'iron', 80, 'chipped/wooden_cage'], ['chipped:wooden_cage_soul_lantern', 'iron', 80, 'chipped/wooden_cage_soul'],
         ['chipped:wrought_iron_lantern', 'iron', 80, 'chipped/wrought_iron'], ['chipped:yellow_tube_lantern', 'iron', 80, 'chipped/yellow_tube'],
         // bibliocraft fancy: 4 ingots of metal around a candle
-        ['bibliocraft:iron_lantern', 'iron', 360, 'bibliocraft/iron_lantern'],
         ['bibliocraft:fancy_iron_lantern', 'iron', 360, 'bibliocraft/fancy_iron'],
         ['bibliocraft:soul_fancy_iron_lantern', 'iron', 360, 'bibliocraft/soul_fancy_iron'],
         ['bibliocraft:fancy_gold_lantern', 'gold', 360, 'bibliocraft/fancy_gold'],
