@@ -237,7 +237,8 @@ ServerEvents.recipes(event => {
     let count = 0
     let skipped = 0
     let goldChestplate = false
-    let recipe, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta
+    let recipe, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta,
+        rcState, rcWaxed, rcFam, rcK, rail, results, rMeta, arsLan
 
     for (recipe of values) {
         count++
@@ -390,6 +391,116 @@ ServerEvents.recipes(event => {
         })
     }
     console.log('[PMW MeltToolsArmor] lanterns: ' + LANTERNS.length)
+
+    // --- minecart rails (all) ---
+    // Every rail/track in the pack, vanilla + modded. Yields follow each item's crafting
+    // share of its metal (ingot 90 mB, nugget 10 mB). Railcraft builds its track blocks
+    // 32-at-a-time from 6 base rails + 1 railbed, so ONE track melts for 6/32 of a base
+    // rail's metal -- melting a track at full rail value would mint infinite metal. This
+    // pack's Railcraft Reborn also OVERRIDES the vanilla rail recipe (6 standard_rail +
+    // wooden_railbed -> 32 rail), which sets minecraft:rail's share to ~13 mB iron.
+    // Metal lists are [metal, mB] pairs (PMW result arrays allow multiple fluids).
+    const RAILS = [
+        // vanilla: railcraft blades the vanilla recipe; powered/detector/activator keep vanilla cost
+        ['minecraft:rail', [['iron', 13]]],                        // 6 std.rail -> 32 rails (pack override)
+        ['minecraft:powered_rail', [['gold', 90]]],                // 6 gold + 1 stick + 1 redstone -> 6
+        ['minecraft:detector_rail', [['iron', 90]]],               // 6 iron + pressure plate + redstone -> 6
+        ['minecraft:activator_rail', [['iron', 90]]],              // 6 iron + stick + redstone torch -> 6
+        // railcraft base rails (rolling machine)
+        ['railcraft:standard_rail', [['iron', 68]]],               // 6 iron -> 8 (67.5)
+        ['railcraft:wooden_rail', [['iron', 15]]],                 // 1 iron + wooden tie -> 6
+        ['railcraft:electric_rail', [['steel', 45], ['copper', 23]]], // 6 steel + 3 copper -> 12
+        ['railcraft:high_speed_rail', [['steel', 34], ['gold', 34]]], // 3 steel + 3 gold -> 8
+        ['railcraft:reinforced_rail', [['steel', 68]]],            // 6 steel + obsidian dust -> 8
+        ['railcraft:advanced_rail', [['gold', 34]]],               // 3 gold + 3 redstone -> 8
+        // standalone railcraft tracks
+        ['railcraft:elevator_track', [['gold', 26], ['iron', 9]]], // 6 adv + 1 std -> 8
+        // everythingcopper: 6 copper + 1 stick -> 16; every oxidation/waxed state melts the same
+        // (all 8 states incl. base are added by the state grid loop below)
+        // other mods
+        ['securitycraft:track_mine', [['iron', 90]]],              // 6 iron + gunpowder + stick -> 6
+        ['advancedperipherals:smart_rail', [['iron', 180], ['gold', 90]]], // detector+activator+powered + modem
+        ['naturesaura:dimension_rail_overworld', [['iron', 540]]], // 6 infused_iron + stick
+        ['naturesaura:dimension_rail_nether', [['gold', 540]]],    // 6 tainted_gold + stick
+        ['create:controller_rail', [['gold', 90], ['iron', 15]]],  // 6 gold + electron tube -> 6
+    ]
+    // everythingcopper copper rail state grid (8 items: oxidation x waxed)
+    for (rcState of ['', 'exposed_', 'weathered_', 'oxidized_']) {
+        for (rcWaxed of ['', 'waxed_']) {
+            RAILS.push(['everythingcopper:' + rcWaxed + rcState + 'copper_rail', [['copper', 34]],
+                'everythingcopper/' + (rcWaxed ? rcWaxed : '') + rcState + 'copper_rail'])
+        }
+    }
+    // create track: sequenced assembly deploys 2 iron|zinc nuggets onto sleepers
+    RAILS.push(['create:track', [['iron', 20]], 'create/track'])
+
+    // railcraft track families: 32 tracks from 6 base rails + 1 railbed
+    const RC_ALL = ['', 'activator', 'booster', 'buffer_stop', 'control', 'coupler', 'detector',
+        'disembarking', 'dumping', 'embarking', 'gated', 'junction', 'launcher', 'locking',
+        'locomotive', 'one_way', 'routing', 'throttle', 'turnout', 'whistle', 'wye']
+    const RC_HS = ['', 'activator', 'booster', 'detector', 'junction', 'locking', 'locomotive',
+        'throttle', 'transition', 'turnout', 'whistle', 'wye']
+    const RC_IRON = ['activator', 'booster', 'buffer_stop', 'control', 'coupler', 'detector',
+        'disembarking', 'dumping', 'embarking', 'gated', 'junction', 'launcher', 'locking',
+        'locomotive', 'one_way', 'routing', 'throttle', 'turnout', 'whistle', 'wye']
+    const RC_FAMILIES = [
+        ['abandoned_', RC_ALL, [['iron', 13]]],
+        ['strap_iron_', RC_ALL, [['iron', 3]]],
+        ['electric_', RC_ALL, [['steel', 8], ['copper', 4]]],
+        ['high_speed_', RC_HS, [['steel', 6], ['gold', 6]]],
+        ['high_speed_electric_', RC_HS, [['steel', 9], ['gold', 6], ['copper', 1]]],
+        ['iron_', RC_IRON, [['iron', 13]]],
+        ['reinforced_', RC_ALL, [['steel', 13]]],
+    ]
+    for (rcFam of RC_FAMILIES) {
+        for (rcK of rcFam[1]) {
+            RAILS.push(['railcraft:' + rcFam[0] + (rcK ? rcK + '_' : '') + 'track', rcFam[2], 'railcraft/' + rcFam[0] + (rcK ? rcK : 'base')])
+        }
+    }
+    let rcRails = 0
+    for (rail of RAILS) {
+        results = []
+        for (rMeta of rail[1]) results.push({ id: METALS[rMeta[0]].fluid, amount: rMeta[1] })
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: rail[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: results,
+            id: 'allthemods:productive_metalworks/foundry/rail/' + (rail[2] || rail[0].replace(':', '_')),
+        })
+        rcRails++
+    }
+    console.log('[PMW MeltToolsArmor] rails: ' + rcRails)
+
+    // --- ars_additions lanterns (Ars Nouveau addon) ---
+    // Pattern: 4 iron nuggets ring the center (10 mB each = 40 mB iron); golden pair adds
+    // 4 gold nuggets; magelight variants swap the core for 4 iron ingots (360 mB).
+    const ARS_LANTERNS = [
+        ['ars_additions:archwood_lantern', [['iron', 40]]],
+        ['ars_additions:archwood_magelight_lantern', [['iron', 40]]],
+        ['ars_additions:golden_lantern', [['iron', 40], ['gold', 40]]],
+        ['ars_additions:golden_magelight_lantern', [['iron', 40], ['gold', 40]]],
+        ['ars_additions:magelight_lantern', [['iron', 400]]],      // 4 ingots + 4 nuggets
+        ['ars_additions:sourcestone_lantern', [['iron', 40]]],
+        ['ars_additions:sourcestone_magelight_lantern', [['iron', 40]]],
+        ['ars_additions:polished_sourcestone_lantern', [['iron', 40]]],
+        ['ars_additions:polished_sourcestone_magelight_lantern', [['iron', 40]]],
+        ['ars_additions:soul_magelight_lantern', [['iron', 40]]],
+    ]
+    for (arsLan of ARS_LANTERNS) {
+        results = []
+        for (rMeta of arsLan[1]) results.push({ id: METALS[rMeta[0]].fluid, amount: rMeta[1] })
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: arsLan[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: results,
+            id: 'allthemods:productive_metalworks/foundry/lantern/ars/' + arsLan[0].split(':').pop(),
+        })
+    }
+    console.log('[PMW MeltToolsArmor] ars lanterns: ' + ARS_LANTERNS.length)
 
     // register after the scan loop so we never mutate the collection being iterated
         for (meta of toAdd) {
