@@ -238,7 +238,8 @@ ServerEvents.recipes(event => {
     let skipped = 0
     let goldChestplate = false
     let recipe, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta,
-        rcState, rcWaxed, rcFam, rcK, rail, results, rMeta, arsLan, chState, chWaxed, uMeta
+        rcState, rcWaxed, rcFam, rcK, rail, results, rMeta, arsLan, chState, chWaxed, uMeta,
+        sMeta, lMeta
 
     for (recipe of values) {
         count++
@@ -375,6 +376,68 @@ ServerEvents.recipes(event => {
         nUtility++
     }
     console.log('[PMW MeltToolsArmor] utility (smithing/flint&steel/chains): ' + nUtility)
+
+    // --- shields (v1.7.0) ---
+    // Offhand items, so the name scan never sees them (no tool/armor slot). Most
+    // metal shields wrap a vanilla shield core (1 iron ingot = 90 mB), which is
+    // counted -- melting them returns every metal that went in. Excluded: alloys
+    // with no PMW fluid (refined_glowstone/refined_obsidian, cloggrum, knightmetal,
+    // glacite/flowglaze), non-metal materials (honey crystal), modular gear
+    // (silentgear:shield: parts, no single material), and items with no recipe
+    // (allthemodium:vibranium_shield unimplemented, everythingcopper WIP model-only,
+    // cataclysm:azure_sea_shield).
+    // [item, [[metal, mB], ...], suffix]
+    const SHIELDS = [
+        ['minecraft:shield', [['iron', 90]], 'vanilla'],                        // 1 iron ingot + 6 planks
+        ['mekanismtools:bronze_shield', [['bronze', 540], ['iron', 90]], 'mekanismtools/bronze'], // 6 ingots + shield core
+        ['mekanismtools:osmium_shield', [['osmium', 540], ['iron', 90]], 'mekanismtools/osmium'],
+        ['mekanismtools:steel_shield', [['steel', 540], ['iron', 90]], 'mekanismtools/steel'],
+        ['mekanismtools:lapis_lazuli_shield', [['lapis', 600], ['iron', 90]], 'mekanismtools/lapis_lazuli'], // 6 lapis gems at 100 mB
+        ['immersiveengineering:shield', [['steel', 540], ['iron', 90]], 'immersiveengineering'], // 6 steel plates + core
+        ['ars_nouveau:enchanters_shield', [['gold', 1620], ['iron', 90]], 'ars_nouveau/enchanters'], // 2 gold blocks + shield core (apparatus)
+        ['endermanoverhaul:corrupted_shield', [['iron', 360]], 'endermanoverhaul'], // 4 iron ingots + teeth/planks
+    ]
+    let nShields = 0
+    for (sMeta of SHIELDS) {
+        results = []
+        for (rMeta of sMeta[1]) results.push({ id: METALS[rMeta[0]].fluid, amount: rMeta[1] })
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: sMeta[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: results,
+            id: 'allthemods:productive_metalworks/foundry/shield/' + sMeta[2],
+        })
+        nShields++
+    }
+    console.log('[PMW MeltToolsArmor] shields: ' + nShields)
+
+    // --- redstone lamps (v1.7.0) ---
+    // Vanilla lamp = 4 redstone dust (100 mB each) + 1 glowstone block (400 mB).
+    // SecurityCraft's reinforced lamp keeps the same metal content -- the
+    // reinforcement is applied with the Universal Block Reinforcer tool, no metal
+    // in the recipe.
+    // [item, [[metal, mB], ...], suffix]
+    const LAMPS = [
+        ['minecraft:redstone_lamp', [['redstone', 400], ['glowstone', 400]], 'vanilla'],
+        ['securitycraft:reinforced_redstone_lamp', [['redstone', 400], ['glowstone', 400]], 'securitycraft'],
+    ]
+    let nLamps = 0
+    for (lMeta of LAMPS) {
+        results = []
+        for (rMeta of lMeta[1]) results.push({ id: METALS[rMeta[0]].fluid, amount: rMeta[1] })
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: lMeta[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: results,
+            id: 'allthemods:productive_metalworks/foundry/lamp/' + lMeta[2],
+        })
+        nLamps++
+    }
+    console.log('[PMW MeltToolsArmor] redstone lamps: ' + nLamps)
 
     // --- lanterns ---
     // Standard lantern = 8 nuggets around a torch = 80 mB (10 mB/nugget);
