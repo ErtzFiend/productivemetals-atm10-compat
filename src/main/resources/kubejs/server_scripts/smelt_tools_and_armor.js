@@ -58,6 +58,8 @@ const METALS = {
     tin:       { fluid: 'productivemetalworks:molten_tin',       temp: 1000 },
     uranium:   { fluid: 'productivemetalworks:molten_uranium',   temp: 1000 },
     zinc:      { fluid: 'productivemetalworks:molten_zinc',      temp: 1000 },
+    refined_glowstone: { fluid: 'productivemetalworks:molten_refined_glowstone', temp: 1000 },
+    refined_obsidian:  { fluid: 'productivemetalworks:molten_refined_obsidian',  temp: 1000 },
     allthemodium: { fluid: 'allthemodium:molten_allthemodium', temp: 3000 },
     vibranium: { fluid: 'allthemodium:molten_vibranium', temp: 3000 },
     unobtainium: { fluid: 'allthemodium:molten_unobtainium', temp: 3000 },
@@ -377,15 +379,19 @@ ServerEvents.recipes(event => {
     }
     console.log('[PMW MeltToolsArmor] utility (smithing/flint&steel/chains): ' + nUtility)
 
-    // --- shields (v1.7.0) ---
+    // --- shields (v1.7.0, extended v1.8.0) ---
     // Offhand items, so the name scan never sees them (no tool/armor slot). Most
     // metal shields wrap a vanilla shield core (1 iron ingot = 90 mB), which is
     // counted -- melting them returns every metal that went in. Excluded: alloys
-    // with no PMW fluid (refined_glowstone/refined_obsidian, cloggrum, knightmetal,
-    // glacite/flowglaze), non-metal materials (honey crystal), modular gear
-    // (silentgear:shield: parts, no single material), and items with no recipe
-    // (allthemodium:vibranium_shield unimplemented, everythingcopper WIP model-only,
-    // cataclysm:azure_sea_shield).
+    // with no PMW fluid (cloggrum, knightmetal, glacite/flowglaze), non-metal
+    // materials (honey crystal), modular gear (silentgear:shield: parts, no
+    // single material), and items with no recipe (allthemodium:vibranium_shield
+    // unimplemented, everythingcopper WIP model-only, aether:shield_of_repulsion
+    // and relics:shield_of_retaliation have no crafting recipe). v1.8.0 adds the
+    // two mekanismtools refined shields (PMW ships molten_refined_glowstone /
+    // molten_refined_obsidian after all) and cataclysm:azure_sea_shield, whose
+    // gold recipe appeared in Cataclysm 3.33 (4 nuggets + 1 ingot = 130 mB gold;
+    // the lacrima has no fluid).
     // [item, [[metal, mB], ...], suffix]
     const SHIELDS = [
         ['minecraft:shield', [['iron', 90]], 'vanilla'],                        // 1 iron ingot + 6 planks
@@ -393,9 +399,12 @@ ServerEvents.recipes(event => {
         ['mekanismtools:osmium_shield', [['osmium', 540], ['iron', 90]], 'mekanismtools/osmium'],
         ['mekanismtools:steel_shield', [['steel', 540], ['iron', 90]], 'mekanismtools/steel'],
         ['mekanismtools:lapis_lazuli_shield', [['lapis', 600], ['iron', 90]], 'mekanismtools/lapis_lazuli'], // 6 lapis gems at 100 mB
+        ['mekanismtools:refined_glowstone_shield', [['refined_glowstone', 540], ['iron', 90]], 'mekanismtools/refined_glowstone'], // 6 ingots + core
+        ['mekanismtools:refined_obsidian_shield', [['refined_obsidian', 540], ['iron', 90]], 'mekanismtools/refined_obsidian'], // 6 ingots + core
         ['immersiveengineering:shield', [['steel', 540], ['iron', 90]], 'immersiveengineering'], // 6 steel plates + core
         ['ars_nouveau:enchanters_shield', [['gold', 1620], ['iron', 90]], 'ars_nouveau/enchanters'], // 2 gold blocks + shield core (apparatus)
         ['endermanoverhaul:corrupted_shield', [['iron', 360]], 'endermanoverhaul'], // 4 iron ingots + teeth/planks
+        ['cataclysm:azure_sea_shield', [['gold', 130]], 'cataclysm/azure_sea'], // 4 gold nuggets + 1 gold ingot + lacrima (no fluid)
     ]
     let nShields = 0
     for (sMeta of SHIELDS) {
