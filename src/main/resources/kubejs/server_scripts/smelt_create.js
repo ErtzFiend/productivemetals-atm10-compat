@@ -52,9 +52,23 @@ ServerEvents.recipes(event => {
     const COIN_METALS = [['iron', 'iron'], ['gold', 'gold'], ['copper', 'copper'], ['brass', 'brass'], ['zinc', 'zinc'], ['netherite', 'netherite'], ['industrial_iron', 'iron']]
 
     let i, row, meta
+    // mtItemOK: registry-existence guard. Item.of(id) is NOT safe here: a missing
+    // namespace logs an ERROR that escapes Rhino's catch and kills the callback.
+    const MTRegistries = Java.loadClass('net.minecraft.core.registries.BuiltInRegistries')
+    const MTLocation = Java.loadClass('net.minecraft.resources.ResourceLocation')
+    function mtItemOK(id) {
+        if (id === null || id === undefined) return false
+        if (id.indexOf(':') <= 0) return false
+        try {
+            return MTRegistries.ITEM.getOptional(MTLocation.parse(id)).isPresent()
+        } catch (e) {
+            return false
+        }
+    }
 
     for (i = 0; i < BESPOKE.length; i++) {
         row = BESPOKE[i]
+        if (!mtItemOK(row[0])) continue
         event.custom({
             type: 'productivemetalworks:item_melting',
             ingredient: { item: row[0] },
@@ -67,6 +81,7 @@ ServerEvents.recipes(event => {
     // wires and rods: half a plate each
     for (i = 0; i < WIRE_METALS.length; i++) {
         meta = WIRE_METALS[i]
+        if (!mtItemOK('createaddition:' + meta[0] + '_wire')) continue
         event.custom({
             type: 'productivemetalworks:item_melting',
             ingredient: { item: 'createaddition:' + meta[0] + '_wire' },
@@ -77,6 +92,7 @@ ServerEvents.recipes(event => {
     }
     for (i = 0; i < ROD_METALS.length; i++) {
         meta = ROD_METALS[i]
+        if (!mtItemOK('createaddition:' + meta[0] + '_rod')) continue
         event.custom({
             type: 'productivemetalworks:item_melting',
             ingredient: { item: 'createaddition:' + meta[0] + '_rod' },
@@ -87,6 +103,7 @@ ServerEvents.recipes(event => {
     }
     for (i = 0; i < SPOOL_METALS.length; i++) {
         meta = SPOOL_METALS[i]
+        if (!mtItemOK('createaddition:' + meta[0] + '_spool')) continue
         event.custom({
             type: 'productivemetalworks:item_melting',
             ingredient: { item: 'createaddition:' + meta[0] + '_spool' },
@@ -97,6 +114,7 @@ ServerEvents.recipes(event => {
     }
     for (i = 0; i < COIN_METALS.length; i++) {
         meta = COIN_METALS[i]
+        if (!mtItemOK('createdeco:' + meta[0] + '_coin')) continue
         event.custom({
             type: 'productivemetalworks:item_melting',
             ingredient: { item: 'createdeco:' + meta[0] + '_coin' },

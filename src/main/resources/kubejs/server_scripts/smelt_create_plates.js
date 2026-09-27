@@ -13,6 +13,19 @@ function meltAmount(plates, outputs) {
 }
 
 ServerEvents.recipes(event => {
+    // mtItemOK: registry-existence guard. Item.of(id) is NOT safe here: a missing
+    // namespace logs an ERROR that escapes Rhino's catch and kills the callback.
+    const MTRegistries = Java.loadClass('net.minecraft.core.registries.BuiltInRegistries')
+    const MTLocation = Java.loadClass('net.minecraft.resources.ResourceLocation')
+    function mtItemOK(id) {
+        if (id === null || id === undefined) return false
+        if (id.indexOf(':') <= 0) return false
+        try {
+            return MTRegistries.ITEM.getOptional(MTLocation.parse(id)).isPresent()
+        } catch (e) {
+            return false
+        }
+    }
     const FLUIDS = {
         brass: 'productivemetalworks:molten_brass',
         copper: 'productivemetalworks:molten_copper',
@@ -186,6 +199,7 @@ ServerEvents.recipes(event => {
 
     for (entry of PLATE_CRAFTED.concat(PLATE_CRAFTED_GENERATED)) {
         item = entry[0]
+        if (!mtItemOK(item)) continue
         plates = entry[1]
         outputs = entry[2]
         metal = entry[3]
@@ -200,6 +214,7 @@ ServerEvents.recipes(event => {
 
     for (entry of BY_HAND) {
         item = entry[0]
+        if (!mtItemOK(item)) continue
         metal = entry[1]
         amount = entry[2]
         temp = entry[3]
