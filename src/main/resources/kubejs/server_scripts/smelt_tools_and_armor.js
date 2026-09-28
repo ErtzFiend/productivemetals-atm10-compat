@@ -241,7 +241,7 @@ ServerEvents.recipes(event => {
     let goldChestplate = false
     let recipe, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta,
         rcState, rcWaxed, rcFam, rcK, rail, results, rMeta, arsLan, chState, chWaxed, uMeta,
-        sMeta, lMeta
+        sMeta, lMeta, hMeta
 
     for (recipe of values) {
         count++
@@ -446,6 +446,70 @@ ServerEvents.recipes(event => {
         })
         nLamps++
     }
+
+    // --- hoppers (v1.9.0) ---
+    // Hoppers are blocks with no tool/armor slot, so the name scan never sees
+    // them. Vanilla hopper = 5 iron ingots (450 mB); everythingcopper's is the
+    // same shape in copper (450 mB) and its waxed/oxidized states are separate
+    // registry items that keep the same metal cost (oxidation and waxing add
+    // no metal), so all 8 EC variants melt at 450 mB. hopper_minecart is
+    // already handled by the FOUNDRY minecart list (900 mB = 2 hoppers).
+    // Nested items are counted at PMW's own melt rates so melting a hopper
+    // never returns more than melting its parts: ender eye/pearl = 100 mB
+    // molten ender, obsidian block = 1000 mB, bucket = 270 mB iron.
+    // Excluded: hopper 'upgrades' applied with a tool (sophisticatedstorage
+    // hopper_upgrade/advanced_hopper_upgrade, naturesaura) -- no metal in the
+    // application, and naturesaura's is also a configurable radius block;
+    // productivebees:purple_hopper and artifacts:bunny_hoppers have no
+    // crafting recipe; framedblocks:framed_hopper is a framed chest (framing
+    // saw, 6144 wood units, no metal); botanypots/dyenamicsandfriends hopper
+    // pots (~140 color variants) are crafted from any pot, no fixed metal --
+    // same reason the copper lantern family is excluded.
+    // [item, [[metal, mB], ...], suffix]
+    const HOPPERS = [
+        ['minecraft:hopper', [['iron', 450]], 'vanilla'],                               // 5 ingots + redstone
+        ['everythingcopper:copper_hopper', [['copper', 450]], 'everythingcopper/plain'],
+        ['everythingcopper:exposed_copper_hopper', [['copper', 450]], 'everythingcopper/exposed'],
+        ['everythingcopper:weathered_copper_hopper', [['copper', 450]], 'everythingcopper/weathered'],
+        ['everythingcopper:oxidized_copper_hopper', [['copper', 450]], 'everythingcopper/oxidized'],
+        ['everythingcopper:waxed_copper_hopper', [['copper', 450]], 'everythingcopper/waxed'],
+        ['everythingcopper:waxed_exposed_copper_hopper', [['copper', 450]], 'everythingcopper/waxed_exposed'],
+        ['everythingcopper:waxed_weathered_copper_hopper', [['copper', 450]], 'everythingcopper/waxed_weathered'],
+        ['everythingcopper:waxed_oxidized_copper_hopper', [['copper', 450]], 'everythingcopper/waxed_oxidized'],
+        // EnderIO: 1 vanilla hopper + 2 iron gears + conductive + redstone alloy
+        // ingots + 1 void chassis (EIO alloys, no PMW fluid) -> iron only.
+        ['enderio:impulse_hopper', [['iron', 450]], 'enderio/impulse'],
+        // Pneumaticcraft: omni hopper = compressed iron (no PMW fluid) hopper shell;
+        // liquid hopper = vanilla hopper + small tank (2 compressed iron + iron bars
+        // + glass) -> the vanilla hopper's iron only.
+        ['pneumaticcraft:omnidirectional_hopper', [], 'pneumaticcraft/omnidirectional'],
+        ['pneumaticcraft:liquid_hopper', [['iron', 450]], 'pneumaticcraft/liquid'],
+        // Mob Grinding Utils: absorption hopper = vanilla hopper + 2 obsidian blocks
+        // (2 x 1000 mB) + 1 eye of ender (100 mB). The 3 directional offsets are the
+        // same block in GUI-configured states, not separate crafted items.
+        ['mob_grinding_utils:absorption_hopper', [['iron', 450], ['obsidian', 2000], ['ender', 100]], 'mob_grinding_utils/absorption'],
+        // Utilitarian: fluid hopper = vanilla hopper shape in iron (5 ingots) + bucket
+        // (270 mB iron) + white dye.
+        ['utilitarian:fluid_hopper', [['iron', 720]], 'utilitarian/fluid'],
+        // SecurityCraft: reinforced hopper = vanilla hopper with a reinforcement applied
+        // by the tool, so the metal content is unchanged.
+        ['securitycraft:reinforced_hopper', [['iron', 450]], 'securitycraft/reinforced'],
+    ]
+    let nHoppers = 0
+    for (hMeta of HOPPERS) {
+        results = []
+        for (rMeta of hMeta[1]) results.push({ id: METALS[rMeta[0]].fluid, amount: rMeta[1] })
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: hMeta[0] },
+            minimum_temperature: 1000,
+            maximum_temperature: 0,
+            result: results,
+            id: 'allthemods:productive_metalworks/foundry/hopper/' + hMeta[2],
+        })
+        nHoppers++
+    }
+    console.log('[PMW MeltToolsArmor] hoppers: ' + nHoppers)
     console.log('[PMW MeltToolsArmor] redstone lamps: ' + nLamps)
 
     // --- lanterns ---
