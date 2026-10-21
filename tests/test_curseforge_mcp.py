@@ -7,7 +7,9 @@ from pathlib import Path
 import tempfile
 import shutil
 
+
 SCRIPT = Path('scripts/curseforge_mcp.py').resolve()
+
 
 class MCPAdapterTests(unittest.TestCase):
     def setUp(self):
@@ -32,9 +34,9 @@ class MCPAdapterTests(unittest.TestCase):
         (self.root / 'src' / 'main' / 'resources' / 'META-INF').mkdir(parents=True, exist_ok=True)
         
         # Create dummy artifact
-        (self.root / 'build' / 'libs' / 'productivemetals-atm10-compat-1.9.0.jar').write_text('dummy')
+        (self.root / 'build' / 'libs' / 'productivemetals-atm10-compat-1.10.0.jar').write_text('dummy')
         (self.root / 'src' / 'main' / 'resources' / 'META-INF' / 'neoforge.mods.toml').write_text('dummy')
-        (self.root / 'build.gradle').write_text("version = '1.9.0'\n")
+        (self.root / 'build.gradle').write_text("version = '1.10.0'\n")
         
         # Dummy publisher script
         self.publisher = self.root / 'scripts/curseforge_publish.py'
@@ -45,11 +47,11 @@ class MCPAdapterTests(unittest.TestCase):
             'print(json.dumps({"state": "mock-success", "args": sys.argv[1:]}))\n'
         )
         os.chmod(self.publisher, 0o755)
-
+    
     def run_mcp(self, args):
         cmd = [sys.executable, str(SCRIPT), '--root', str(self.root), '--manifest', 'curseforge-project.json', '--journal', str(self.journal)] + args
         return subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
+    
     def test_lifecycle_and_tools_list(self):
         proc = self.run_mcp([])
         try:
@@ -60,10 +62,10 @@ class MCPAdapterTests(unittest.TestCase):
             out = json.loads(proc.stdout.readline())
             self.assertEqual(out['id'], 1)
             self.assertIn('result', out)
-
+            
             proc.stdin.write('{"jsonrpc": "2.0", "method": "notifications/initialized"}\n')
             proc.stdin.flush()
-
+            
             proc.stdin.write('{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}\n')
             proc.stdin.flush()
             
@@ -73,7 +75,7 @@ class MCPAdapterTests(unittest.TestCase):
         finally:
             proc.terminate()
             proc.wait()
-
+    
     def test_tool_call_without_allow_write_refuses_mutation(self):
         proc = self.run_mcp([])
         try:
@@ -81,10 +83,10 @@ class MCPAdapterTests(unittest.TestCase):
             proc.stdin.write(json.dumps(init) + '\n')
             proc.stdin.flush()
             proc.stdout.readline()
-
+            
             proc.stdin.write('{"jsonrpc": "2.0", "method": "notifications/initialized"}\n')
             proc.stdin.flush()
-
+            
             # Attempt upload without allow-write
             call = {
                 "jsonrpc": "2.0",
@@ -101,14 +103,14 @@ class MCPAdapterTests(unittest.TestCase):
             }
             proc.stdin.write(json.dumps(call) + '\n')
             proc.stdin.flush()
-
+            
             out = json.loads(proc.stdout.readline())
             self.assertEqual(out['id'], 3)
             self.assertTrue(out['result']['isError'])
         finally:
             proc.terminate()
             proc.wait()
-
+    
     def test_project_info_tool(self):
         proc = self.run_mcp([])
         try:
@@ -116,10 +118,10 @@ class MCPAdapterTests(unittest.TestCase):
             proc.stdin.write(json.dumps(init) + '\n')
             proc.stdin.flush()
             proc.stdout.readline()
-
+            
             proc.stdin.write('{"jsonrpc": "2.0", "method": "notifications/initialized"}\n')
             proc.stdin.flush()
-
+            
             # Call project_info
             call = {
                 "jsonrpc": "2.0",
@@ -132,18 +134,18 @@ class MCPAdapterTests(unittest.TestCase):
             }
             proc.stdin.write(json.dumps(call) + '\n')
             proc.stdin.flush()
-
+            
             out = json.loads(proc.stdout.readline())
             self.assertEqual(out['id'], 4)
             self.assertFalse(out['result']['isError'])
             result = json.loads(out['result']['content'][0]['text'])
             self.assertEqual(result['project_id'], 1703803)
-            self.assertEqual(result['version'], '1.9.0')
+            self.assertEqual(result['version'], '1.10.0')
             self.assertEqual(result['write_enabled'], False)
         finally:
             proc.terminate()
             proc.wait()
-
+    
     def test_with_allow_write_flag(self):
         proc = self.run_mcp(['--allow-write'])
         try:
@@ -151,10 +153,10 @@ class MCPAdapterTests(unittest.TestCase):
             proc.stdin.write(json.dumps(init) + '\n')
             proc.stdin.flush()
             proc.stdout.readline()
-
+            
             proc.stdin.write('{"jsonrpc": "2.0", "method": "notifications/initialized"}\n')
             proc.stdin.flush()
-
+            
             # Call project_info with allow-write
             call = {
                 "jsonrpc": "2.0",
@@ -167,7 +169,7 @@ class MCPAdapterTests(unittest.TestCase):
             }
             proc.stdin.write(json.dumps(call) + '\n')
             proc.stdin.flush()
-
+            
             out = json.loads(proc.stdout.readline())
             self.assertEqual(out['id'], 4)
             self.assertFalse(out['result']['isError'])
@@ -176,7 +178,7 @@ class MCPAdapterTests(unittest.TestCase):
         finally:
             proc.terminate()
             proc.wait()
-
+    
     def test_preflight_tool(self):
         proc = self.run_mcp([])
         try:
@@ -184,10 +186,10 @@ class MCPAdapterTests(unittest.TestCase):
             proc.stdin.write(json.dumps(init) + '\n')
             proc.stdin.flush()
             proc.stdout.readline()
-
+            
             proc.stdin.write('{"jsonrpc": "2.0", "method": "notifications/initialized"}\n')
             proc.stdin.flush()
-
+            
             # Call preflight
             call = {
                 "jsonrpc": "2.0",
@@ -200,7 +202,7 @@ class MCPAdapterTests(unittest.TestCase):
             }
             proc.stdin.write(json.dumps(call) + '\n')
             proc.stdin.flush()
-
+            
             out = json.loads(proc.stdout.readline())
             self.assertEqual(out['id'], 5)
             self.assertFalse(out['result']['isError'])
@@ -209,7 +211,7 @@ class MCPAdapterTests(unittest.TestCase):
         finally:
             proc.terminate()
             proc.wait()
-
+    
     def test_invalid_tool_refused(self):
         proc = self.run_mcp([])
         try:
@@ -217,10 +219,10 @@ class MCPAdapterTests(unittest.TestCase):
             proc.stdin.write(json.dumps(init) + '\n')
             proc.stdin.flush()
             proc.stdout.readline()
-
+            
             proc.stdin.write('{"jsonrpc": "2.0", "method": "notifications/initialized"}\n')
             proc.stdin.flush()
-
+            
             # Call non-existent tool
             call = {
                 "jsonrpc": "2.0",
@@ -233,13 +235,13 @@ class MCPAdapterTests(unittest.TestCase):
             }
             proc.stdin.write(json.dumps(call) + '\n')
             proc.stdin.flush()
-
+            
             out = json.loads(proc.stdout.readline())
             self.assertEqual(out['id'], 6)
             self.assertTrue(out['result']['isError'])
         finally:
             proc.terminate()
             proc.wait()
-
+    
 if __name__ == '__main__':
     unittest.main()

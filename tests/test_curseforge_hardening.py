@@ -62,7 +62,7 @@ class HardeningTests(PublisherTests):
         self.assertEqual(self.run_cf()['state'], 'accepted')
         alias = self.root / 'alias-dir'
         alias.symlink_to(self.journal.parent, target_is_directory=True)
-        args = cf.parser().parse_args(['upload', '--manifest', str(self.manifest), '--journal', str(alias / self.journal.name), '--tag', 'v1.9.0', '--confirm-no-existing-file'])
+        args = cf.parser().parse_args(['upload', '--manifest', str(self.manifest), '--journal', str(alias / self.journal.name), '--tag', 'v' + self.ver, '--confirm-no-existing-file'])
         self.assertEqual(cf.run(args, self.fake)['state'], 'already-accepted')
         self.assertEqual(len(self.fake.posts), 1)
 
@@ -91,7 +91,7 @@ class HardeningTests(PublisherTests):
     def test_default_journal_is_outside_repository(self):
         state = tempfile.TemporaryDirectory(prefix='cf-state-')
         self.addCleanup(state.cleanup)
-        args = cf.parser().parse_args(['upload', '--manifest', str(self.manifest), '--tag', 'v1.9.0', '--confirm-no-existing-file'])
+        args = cf.parser().parse_args(['upload', '--manifest', str(self.manifest), '--tag', 'v' + self.ver, '--confirm-no-existing-file'])
         with patch.dict(os.environ, {'XDG_STATE_HOME': state.name}):
             self.assertEqual(cf.run(args, self.fake)['state'], 'accepted')
         expected = Path(state.name) / 'curseforge' / '1703803.json'

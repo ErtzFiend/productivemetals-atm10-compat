@@ -50,14 +50,15 @@ class PublisherTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.m = json.loads((REPO / 'curseforge-project.json').read_text())
+        self.ver = self.m['version']
         self.manifest = self.root / 'curseforge-project.json'
         self.manifest.write_text(json.dumps(self.m))
-        (self.root / 'build.gradle').write_text("version = '1.9.0'\n")
+        (self.root / 'build.gradle').write_text(f"version = '{self.ver}'\n")
         self.descriptor = (REPO / self.m['descriptor']).read_bytes()
         descpath = self.root / self.m['descriptor']
         descpath.parent.mkdir(parents=True)
         descpath.write_bytes(self.descriptor)
-        self.jar = self.root / self.m['artifact'].format(version='1.9.0')
+        self.jar = self.root / self.m['artifact'].format(version=self.ver)
         self.jar.parent.mkdir(parents=True)
         self.make_jar()
         self.git('init', '-q')
@@ -67,7 +68,7 @@ class PublisherTests(unittest.TestCase):
         (self.root / '.gitignore').write_text('build/\n.curseforge/\n')
         self.git('add', '.')
         self.git('commit', '-qm', 'fixture')
-        self.git('tag', 'v1.9.0')
+        self.git('tag', 'v' + self.ver)
         self.journal = self.root / '.curseforge/journal.json'
         self.fake = FakeAuthor()
 
@@ -76,11 +77,11 @@ class PublisherTests(unittest.TestCase):
 
     def make_jar(self, descriptor=None):
         with zipfile.ZipFile(self.jar, 'w') as z:
-            z.writestr('META-INF/neoforge.mods.toml', descriptor or self.descriptor.replace(b'${file.jarVersion}', b'1.9.0'))
+            z.writestr('META-INF/neoforge.mods.toml', descriptor or self.descriptor.replace(b'${file.jarVersion}', self.ver.encode()))
             z.writestr('kubejs/server_scripts/example.js', '// fixture')
 
     def args(self, command='upload', *extra):
-        return cf.parser().parse_args([command, '--manifest', str(self.manifest), '--journal', str(self.journal), '--tag', 'v1.9.0', '--confirm-no-existing-file', *extra])
+        return cf.parser().parse_args([command, '--manifest', str(self.manifest), '--journal', str(self.journal), '--tag', 'v' + self.ver, '--confirm-no-existing-file', *extra])
 
     def run_cf(self, command='upload', *extra):
         return cf.run(self.args(command, *extra), self.fake)
@@ -95,7 +96,7 @@ class PublisherTests(unittest.TestCase):
         env = {'PATH': os.defpath, 'HOME': str(self.root)}
         base = [sys.executable, str(SCRIPT)]
         common = ['--manifest', str(self.manifest), '--journal', str(self.journal)]
-        p = subprocess.run(base + ['preflight', *common, '--tag', 'v1.9.0'], env=env, capture_output=True, text=True)
+        p = subprocess.run(base + ['preflight', *common, '--tag', 'v' + self.ver], env=env, capture_output=True, text=True)
         self.assertEqual(p.returncode, 0, p.stderr)
         self.assertEqual(json.loads(p.stdout)['state'], 'preflight-ok')
         p = subprocess.run(base + ['status', *common], env=env, capture_output=True, text=True)
@@ -108,7 +109,7 @@ class PublisherTests(unittest.TestCase):
 
     def test_preflight_offline(self):
         r = self.run_cf('preflight')
-        self.assertEqual(r['version'], '1.9.0')
+        self.assertEqual(r['version'], self.ver)
         self.assertEqual(r['sha256'], hashlib.sha256(self.jar.read_bytes()).hexdigest())
         self.assertEqual(self.fake.calls, [])
         self.assertFalse(self.journal.parent.exists())
@@ -131,7 +132,7 @@ class PublisherTests(unittest.TestCase):
         self.assertIn(b'"relations":{"projects":', call[2])
         self.assertEqual(self.run_cf()['state'], 'already-accepted')
         self.assertEqual(len(self.fake.posts), 1)
-        self.assertEqual(cf.read_journal(self.journal)['operations']['1703803:1.9.0:upload']['state'], 'accepted')
+        self.assertEqual(cf.read_journal(self.journal)['operations'][f'1703803:{self.ver}:upload']['state'], 'accepted')
 
     def test_wrong_project_no_write(self):
         self.reject('--project-id', '123')
@@ -147,15 +148,15 @@ class PublisherTests(unittest.TestCase):
         self.reject()
 
     def test_wrong_mod_no_write(self):
-        self.make_jar(self.descriptor.replace(b'${file.jarVersion}', b'1.9.0').replace(b'modId="productivemetalsatm10compat"', b'modId="wrongmod"'))
+        self.make_jar(self.descriptor.replace(b'${file.jarVersion}', self.ver.encode()).replace(b'modId="productivemetalsatm10compat"', b'modId="wrongmod"'))
         self.reject()
 
     def test_dependency_mismatch_no_write(self):
-        self.make_jar(self.descriptor.replace(b'${file.jarVersion}', b'1.9.0').replace(b'modId="kubejs"', b'modId="wrongdep"'))
+        self.make_jar(self.descriptor.replace(b'${file.jarVersion}', self.ver.encode()).replace(b'modId="kubejs"', b'modId="wrongdep"'))
         self.reject()
 
     def test_wrong_minecraft_version_no_write(self):
-        self.make_jar(self.descriptor.replace(b'${file.jarVersion}', b'1.9.0').replace(b'[1.21.1]', b'[1.20.1]'))
+        self.make_jar(self.descriptor.replace(b'${file.jarVersion}', self.ver.encode()).replace(b'[1.21.1]', b'[1.20.1]'))
         self.reject()
 
     def test_bad_zip_no_write(self):
@@ -170,7 +171,7 @@ class PublisherTests(unittest.TestCase):
         (self.root / 'build.gradle').write_text("version = '9.0.0'\n")
         self.git('add', 'build.gradle')
         self.git('commit', '-qm', 'wrong source')
-        self.git('tag', '-f', 'v1.9.0')
+        self.git('tag', '-f', 'v' + self.ver)
         self.reject()
 
     def test_tag_points_elsewhere_no_write(self):
@@ -198,7 +199,7 @@ class PublisherTests(unittest.TestCase):
                 self.fake = FakeAuthor(result=result)
                 with self.assertRaises(cf.Error):
                     self.run_cf()
-                self.assertEqual(cf.read_journal(self.journal)['operations']['1703803:1.9.0:upload']['state'], 'ambiguous')
+                self.assertEqual(cf.read_journal(self.journal)['operations'][f'1703803:{self.ver}:upload']['state'], 'ambiguous')
                 with self.assertRaises(cf.Error):
                     self.run_cf()
                 self.assertEqual(len(self.fake.posts), 1)
@@ -216,7 +217,7 @@ class PublisherTests(unittest.TestCase):
         old = self.fake.request
         def request(method, *args):
             if method == 'POST':
-                self.assertEqual(cf.read_journal(self.journal)['operations']['1703803:1.9.0:upload']['state'], 'pending')
+                self.assertEqual(cf.read_journal(self.journal)['operations'][f'1703803:{self.ver}:upload']['state'], 'pending')
             return old(method, *args)
         with patch.object(self.fake, 'request', side_effect=request):
             self.run_cf()
@@ -299,7 +300,7 @@ class PublisherTests(unittest.TestCase):
     def test_pending_crash_state_blocks_new_post(self):
         self.run_cf()
         j = cf.read_journal(self.journal)
-        entry = j['operations']['1703803:1.9.0:upload']
+        entry = j['operations'][f'1703803:{self.ver}:upload']
         entry['state'] = 'pending'
         entry.pop('id')
         cf.save_journal(self.journal, j)
@@ -310,7 +311,7 @@ class PublisherTests(unittest.TestCase):
     def test_journal_policy_corruption_blocks_acceptance(self):
         self.run_cf()
         j = cf.read_journal(self.journal)
-        j['operations']['1703803:1.9.0:upload']['project_id'] = 999
+        j['operations'][f'1703803:{self.ver}:upload']['project_id'] = 999
         cf.save_journal(self.journal, j)
         with self.assertRaises(cf.Error):
             self.run_cf()
