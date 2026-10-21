@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "project_id": 1703803,
+  "author_url": "https://minecraft.curseforge.com",
+  "version": "1.10.0",
+  "minecraft_version": "1.21.1",
+  "version_file": "build.gradle",
+  "artifact": "build/libs/productivemetals-atm10-compat-{version}.jar",
+  "descriptor": "src/main/resources/META-INF/neoforge.mods.toml",
+  "mod_id": "productivemetalsatm10compat",
+  "display_name": "ProductiveMetals ATM10 Compat",
+  "release_type": "release",
+  "game_versions": [
+    {"name": "1.21.1"},
+    {"name": "NeoForge"},
+    {"name": "Java 21"},
+    {"name": "Server"}
+  ],
+  "dependencies": {
+    "kubejs": "kubejs",
+    "productivemetalworks": "productive-metalworks"
+  }
+}
