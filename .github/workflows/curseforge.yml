@@ -1,86 +1,137 @@
 name: Publish to CurseForge
 
-# Push a built jar to the project's CurseForge files.
-# Trigger: push a version tag (v1.4.3, ...) OR run manually from the Actions tab.
-# Requires repo settings: secret CURSEFORGE_API_KEY (the CF API key) and
-# variable CF_PROJECT_ID (numeric project id from the project page URL).
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish after checking CurseForge for an existing file for this exact version (not a retry switch)'
+        type: boolean
+        default: false
+      initialize_journal:
+        description: 'Allow first publication without a saved journal; requires independent remote duplicate check'
+        type: boolean
+        default: false
   push:
     tags: ['v*']
 
 permissions:
   contents: read
 
+concurrency:
+  group: curseforge-project-1703803
+  cancel-in-progress: false
+
 jobs:
-  curseforge:
+  publisher-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -v
+      - run: python -m py_compile scripts/curseforge_publish.py tests/test_curseforge_publish.py tests/test_workflow_contract.py
+
+  curseforge:
+    needs: publisher-tests
+    runs-on: ubuntu-latest
+    # Configure required reviewers AND protected-tag-only deployment rules in Settings.
+    environment: curseforge-publish
+    steps:
+      - name: Require a protected version tag, including manual runs
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          test "$REF_TYPE" = tag
+          test "$REF_PROTECTED" = true
+          [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+][A-Za-z0-9.-]+)?$ ]]
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-
-      - uses: actions/setup-java@v4
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: '21'
-
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4 peeled commit
         with:
           gradle-version: '8.14'
 
-      - name: Build jar
-        run: gradle --no-daemon build -x test
+      - name: Build and test JAR
+        run: gradle --no-daemon build
 
-      - name: Upload jar artifact (for manual browser uploads)
-        uses: actions/upload-artifact@v4
+      - name: Validate artifact and source tag without credentials
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/curseforge_publish.py preflight --tag "$RELEASE_TAG"
+
+      - name: Upload built artifact for inspection/manual publication
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mod-jar
           path: build/libs/productivemetals-atm10-compat-*.jar
           if-no-files-found: error
 
-      - name: Upload to CurseForge
+      - name: Restore publication journal
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        id: journal
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .curseforge/journal.json
+          key: cf-journal-1703803-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: cf-journal-1703803-
+
+      - name: Refuse missing journal unless explicitly initializing
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
         env:
-          CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-          CF_PROJECT_ID: ${{ vars.CF_PROJECT_ID }}
+          INITIALIZE: ${{ inputs.initialize_journal }}
         run: |
           set -euo pipefail
-          [ -n "$CF_API_KEY" ] || { echo "secret CURSEFORGE_API_KEY not set"; exit 1; }
-          [ -n "$CF_PROJECT_ID" ] && [ "$CF_PROJECT_ID" != "" ] || { echo "variable CF_PROJECT_ID not set"; exit 1; }
-
-          VERSION=$(grep "^version" build.gradle | sed -E "s/^version = '([^']+)'.*/\1/")
-          JAR=$(ls build/libs/productivemetals-atm10-compat-"$VERSION".jar 2>/dev/null | head -1)
-          [ -n "$JAR" ] || { echo "no jar found for version $VERSION"; ls build/libs/ || true; exit 1; }
-          echo "Uploading: $JAR"
-
-          TAG="${GITHUB_REF_NAME:-manual}"
-          if [ "$TAG" = "manual" ]; then
-            CHANGELOG="$(git log -1 --format='%s')"
-          else
-            BASE=$(git describe --tags --abbrev=0 "$TAG"~1 2>/dev/null || echo "$TAG"~1)
-            CHANGELOG="$(git log --format='- %s' "$BASE".."$TAG" 2>/dev/null || git log -1 --format='- %s')"
+          if [ ! -f .curseforge/journal.json ]; then
+            test "$INITIALIZE" = true || { printf '%s\n' 'Missing journal: recover prior journal or explicitly initialize after remote verification.'; exit 1; }
           fi
-          [ -n "$CHANGELOG" ] || CHANGELOG="Release $VERSION"
 
-          METADATA=$(jq -nc --arg v "$VERSION" --arg cl "$CHANGELOG" '{
-            changelog: $cl,
-            changelogType: "markdown",
-            displayName: ("ProductiveMetals ATM10 Compat " + $v),
-            gameVersions: ["1.21.1"],
-            releaseType: "release",
-            relations: [
-              {slug: "kubejs", type: 3},
-              {slug: "productive-metalworks", type: 3}
-            ]
-          }')
+      - name: Plan with official numeric version resolution (GET only)
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/curseforge_publish.py plan --journal .curseforge/journal.json --tag "$RELEASE_TAG"
 
-          CODE=$(curl -sS -o response.json -w "%{http_code}" \
-            -H "x-api-key: $CF_API_KEY" \
-            -H "X-Api-Token: $CF_API_KEY" \
-            -F "metadata=$METADATA" \
-            -F "file=@$JAR" \
-            "https://minecraft.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file")
-          echo "HTTP $CODE"
-          cat response.json
-          echo
-          [ "$CODE" = "200" ] || exit 1
+      - name: Publish once through the shared CLI
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        id: publish
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/curseforge_publish.py upload --journal .curseforge/journal.json --tag "$RELEASE_TAG" --confirm-no-existing-file
+
+      - name: Preserve journal even on timeout/failure
+        if: always() && steps.publish.outcome != 'skipped' && steps.publish.outcome != ''
+        id: save_journal
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .curseforge/journal.json
+          key: cf-journal-1703803-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Archive journal evidence for recovery
+        if: always() && steps.publish.outcome != 'skipped' && steps.publish.outcome != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: curseforge-journal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .curseforge/journal.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: State verification limitation
+        if: steps.publish.outcome == 'success'
+        run: printf '%s\n' 'Author API accepted an ID. Verify project, file, dependencies and moderation status in CurseForge before declaring release complete.'

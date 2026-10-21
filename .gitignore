@@ -7,3 +7,6 @@ out/
 .idea/
 *.iml
 .gradle/
+.curseforge/
+__pycache__/
+*.pyc

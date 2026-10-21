@@ -53,6 +53,12 @@ gradle build
 
 Output lands in `build/libs/productivemetals-atm10-compat-<version>.jar`.
 
+## Publishing
+
+See [the deterministic CurseForge publisher runbook](docs/curseforge-publishing.md)
+for local/Hermes commands, protected-tag CI, journal recovery, and verification limits.
+The checked-in release policy remains version **1.9.0**; publication never bumps it.
+
 ## License
 
 [MIT](LICENSE)
