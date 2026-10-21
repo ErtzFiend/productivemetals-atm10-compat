@@ -1,12 +1,1 @@
-gradle.properties
-.DS_Store
-run/
-runs/
-build/
-out/
-.idea/
-*.iml
-.gradle/
-.curseforge/
 __pycache__/
-*.pyc
