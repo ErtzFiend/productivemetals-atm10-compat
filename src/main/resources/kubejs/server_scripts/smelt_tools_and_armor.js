@@ -72,6 +72,8 @@ const COUNT_BY_SLOT = {
     pickaxe: 3, axe: 3, shovel: 1, hoe: 2, sword: 2,
     helmet: 5, chestplate: 8, leggings: 7, boots: 4,
     gloves: 2,  // Aether-style "# #" gloves: 2 ingots / 2 gems
+    knife: 1, hammer: 2, ring: 1, pressure_plate: 2,
+    sophisticated_chest: 8, sophisticated_barrel: 6,
 }
 
 // smithing-only gear has no crafting recipe, so the scan can never see it
@@ -96,6 +98,20 @@ function getToolType(id) {
     if (name === 'shovel' || name.endsWith('_shovel')) return 'shovel'
     if (name === 'hoe' || name.endsWith('_hoe')) return 'hoe'
     if (name === 'sword' || name.endsWith('_sword')) return 'sword'
+    if (name === 'knife' || name.endsWith('_knife')) return 'knife'
+    if (name === 'hammer' || name.endsWith('_hammer')) return 'hammer'
+    return null
+}
+
+function getOtherMetalType(id) {
+    var full = String(id)
+    var name = nameOf(id)
+    if (name === 'ring' || name.endsWith('_ring') || name.startsWith('ring_') || name.startsWith('ring_of_')) return 'ring'
+    if (name.endsWith('_pressure_plate')) return 'pressure_plate'
+    if (full.startsWith('sophisticatedstorage:')) {
+        if (name.endsWith('_chest')) return 'sophisticated_chest'
+        if (name.indexOf('_barrel') >= 0) return 'sophisticated_barrel'
+    }
     return null
 }
 
@@ -148,6 +164,64 @@ function mergeMetal(cur, next) {
     return cur === next ? cur : 'MULTI'
 }
 
+function familyRecipeAmount(recipe, metal, info, slot) {
+    var json = recipe.originalJson
+    var resultStack = recipe.originalRecipeResult
+    var total = 0
+    var keyObj, patternArray, entry, obj, matched, pattern, target, i, j, raw, volume
+    var ingredients, el, outCount
+    if (!resultStack) return 0
+    if (!json) return (COUNT_BY_SLOT[slot] || 1) * (info.gem ? VOLUME_PER_GEM : VOLUME_PER_INGOT)
+
+    function volumeForIngredient(ingredient) {
+        var text = ''
+        try { if (ingredient.has('tag')) text = ingredient.get('tag').getAsString() } catch (e) {}
+        try { if (ingredient.has('item')) text = ingredient.get('item').getAsString() } catch (e) {}
+        text = String(text).toLowerCase()
+        if (text.indexOf('nugget') >= 0) return 10
+        if (text.indexOf('storage_block') >= 0 || text.indexOf('/blocks/') >= 0 || text.endsWith('_block')) return 810
+        return info.gem ? VOLUME_PER_GEM : VOLUME_PER_INGOT
+    }
+
+    try {
+        keyObj = json.get('key')
+        patternArray = json.get('pattern')
+        if (keyObj && keyObj.isJsonObject() && patternArray && patternArray.isJsonArray()) {
+        for (entry of keyObj.entrySet()) {
+                obj = entry.getValue()
+                if (!obj || !obj.isJsonObject()) continue
+                obj = obj.getAsJsonObject()
+                matched = metalFromJsonObj(obj)
+                if (matched !== metal) continue
+                target = String(entry.getKey())
+                volume = volumeForIngredient(obj)
+                for (i = 0; i < patternArray.size(); i++) {
+                    pattern = patternArray.get(i).getAsString()
+                    for (j = 0; j < pattern.length; j++) if (pattern.charAt(j) === target.charAt(0)) total += volume
+                }
+            }
+        } else {
+            ingredients = json.get('ingredients')
+            if (ingredients && ingredients.isJsonArray()) {
+                for (el of ingredients) {
+                    if (el && el.isJsonObject() && metalFromJsonObj(el.getAsJsonObject()) === metal) {
+                        total += volumeForIngredient(el.getAsJsonObject())
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        total = 0
+    }
+    try { outCount = Number(resultStack.count) } catch (e) { outCount = 1 }
+    if (!outCount || outCount < 1) outCount = 1
+    total = Math.floor((total / outCount) / 5) * 5
+    if (total > 0) return total
+    // Conservative metal-only estimate for recipes whose optional JSON wrapper
+    // cannot be traversed by this KubeJS/Rhino build.
+    return (COUNT_BY_SLOT[slot] || 1) * (info.gem ? VOLUME_PER_GEM : VOLUME_PER_INGOT)
+}
+
 // --- scan one recipe and return an object when it should melt ---
 function analyzeRecipe(recipe, errors) {
     // Rhino hoists let/const in this function to enclosing scope and throws
@@ -164,14 +238,14 @@ function analyzeRecipe(recipe, errors) {
     typeMatch = /\[([^\]]+)\]$/.exec(String(recipe))
     if (!typeMatch) return null
     type = typeMatch[1]
-    if (type !== 'minecraft:crafting_shaped' && type !== 'minecraft:crafting_shapeless') return null
+    if (type !== 'minecraft:crafting_shaped' && type !== 'minecraft:crafting_shapeless' && type !== 'sophisticatedstorage:storage_tier_upgrade' && type !== 'sophisticatedstorage:double_chest_tier_upgrade') return null
 
     resultStack = recipe.originalRecipeResult
     if (!resultStack) return null
     outId = String(resultStack.id)
     if (!outId || outId === 'minecraft:air') return null
 
-    slot = getToolType(outId) || getArmorType(outId)
+    slot = getToolType(outId) || getArmorType(outId) || getOtherMetalType(outId)
     if (!slot) return null
 
     // Rhino: loop-local values are declared once here, assigned inside the loops
@@ -184,6 +258,10 @@ function analyzeRecipe(recipe, errors) {
                 for (entry of keyObj.entrySet()) {
                     value = entry.getValue()
                     if (value && value.isJsonObject()) {
+                        if ((slot === 'sophisticated_chest' || slot === 'sophisticated_barrel') && value.getAsJsonObject().has('item')) {
+                            matched = String(value.getAsJsonObject().get('item').getAsString())
+                            if (matched.indexOf('sophisticatedstorage:') === 0 && (matched.endsWith('_chest') || matched.endsWith('_barrel'))) continue
+                        }
                         matched = metalFromJsonObj(value.getAsJsonObject())
                         if (matched) metal = mergeMetal(metal, matched)
                     }
@@ -232,24 +310,47 @@ ServerEvents.recipes(event => {
     // NOTE: event.recipes is the recipe-BUILDER namespace. The registry itself is
     // event.originalRecipes (Map<ResourceLocation, Recipe>), value type RAW vanilla
     // Recipe -- kjs$getType()/type do not exist on them.
-    const values = (event.originalRecipes && event.originalRecipes.values) ? event.originalRecipes.values() : []
+    const entries = (event.originalRecipes && event.originalRecipes.entrySet) ? event.originalRecipes.entrySet() : []
     const toAdd = []
     const perMetal = {}
     const errors = []
     let count = 0
     let skipped = 0
     let goldChestplate = false
-    let recipe, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta,
+    let recipe, recipeEntry, recipeId, result, info, meta, itemId, units, slot, id, lanState, lanWaxed, lanColor, lanMeta,
         rcState, rcWaxed, rcFam, rcK, rail, results, rMeta, arsLan, chState, chWaxed, uMeta,
-        sMeta, lMeta, hMeta
+        sMeta, lMeta, hMeta, familyKey, familyMeta, familyInfo
 
-    for (recipe of values) {
+    // For new item families, compute the metal payout from the recipe's metal-bearing
+    // pattern cells rather than assuming a fixed tool slot cost.
+    var ingredientVolume, recipeAmount
+    var familyCandidates = {}
+    for (recipeEntry of entries) {
         count++
+        recipeId = String(recipeEntry.getKey())
+        if (recipeId.indexOf('create_ironworks:misc/compat/better_smithing_upgrades/') === 0) {
+            skipped++
+            continue
+        }
+        recipe = recipeEntry.getValue()
         try {
             result = analyzeRecipe(recipe, errors)
             if (!result) continue
             info = METALS[result.metal]
             if (!info) continue
+            if (['knife', 'hammer', 'ring', 'pressure_plate', 'sophisticated_chest', 'sophisticated_barrel'].indexOf(result.slot) >= 0) {
+                recipeAmount = familyRecipeAmount(recipe, result.metal, info, result.slot)
+                if (recipeAmount <= 0) continue
+                id = result.outId
+                if (!familyCandidates[id]) {
+                    familyCandidates[id] = { outId: result.outId, slot: result.slot, metal: result.metal, amount: recipeAmount, ambiguous: false }
+                } else if (familyCandidates[id].metal !== result.metal) {
+                    familyCandidates[id].ambiguous = true
+                } else if (recipeAmount < familyCandidates[id].amount) {
+                    familyCandidates[id].amount = recipeAmount
+                }
+                continue
+            }
             toAdd.push({
                 type: 'productivemetalworks:item_melting',
                 ingredient: { item: result.outId },
@@ -266,6 +367,26 @@ ServerEvents.recipes(event => {
             if (errors.length < 10) errors.push(String(e))
         }
     }
+
+    var familySummary = []
+    let familyCount = 0
+    for (familyKey of Object.keys(familyCandidates)) {
+        familyMeta = familyCandidates[familyKey]
+        if (familyMeta.ambiguous) continue
+        familyInfo = METALS[familyMeta.metal]
+        toAdd.push({
+            type: 'productivemetalworks:item_melting',
+            ingredient: { item: familyMeta.outId },
+            minimum_temperature: familyInfo.temp,
+            maximum_temperature: 0,
+            result: [{ id: familyInfo.fluid, amount: familyMeta.amount }],
+            id: 'allthemods:productive_metalworks/melting/' + familyMeta.slot + '/' + familyMeta.metal + '/' + familyMeta.outId.replace(':', '/'),
+        })
+        perMetal[familyMeta.metal] = (perMetal[familyMeta.metal] || 0) + 1
+        familyCount++
+        familySummary.push(familyMeta.outId + '=' + familyMeta.amount + 'mB ' + familyMeta.metal)
+    }
+    console.log('[PMW MeltToolsArmor] new item families added: ' + familyCount + ', ambiguous outputs skipped: ' + Object.keys(familyCandidates).filter(familyKey => familyCandidates[familyKey].ambiguous).length + ' [' + familySummary.join('; ') + ']')
 
     // netherite gear has no crafting recipe to scan; same slot costs apply
     info = METALS.netherite

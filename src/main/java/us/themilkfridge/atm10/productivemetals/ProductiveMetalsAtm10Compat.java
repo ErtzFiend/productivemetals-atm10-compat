@@ -20,7 +20,8 @@ public final class ProductiveMetalsAtm10Compat {
             "smelt_tools_and_armor.js",
             "smelt_create.js",
             "smelt_create_plates.js",
-            "carbon_basin_cast.js"
+            "carbon_basin_cast.js",
+            "straw_biofuel.js"
     );
 
     public ProductiveMetalsAtm10Compat(IEventBus modBus, ModContainer container) {

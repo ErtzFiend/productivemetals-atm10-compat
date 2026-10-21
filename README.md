@@ -14,11 +14,12 @@ ingot, 100 mB per gem.
 
 | Script | What it melts |
 |---|---|
-| `smelt_tools_and_armor.js` | Every tool, armor & glove piece, detected by scanning all crafting recipes at load (324 recipes on a loaded ATM10 world). Smithing-only gear (vanilla netherite, Aether's netherite gloves) is listed by hand since it has no crafting recipe. |
+| `smelt_tools_and_armor.js` | Every tool, armor & glove piece, detected by scanning crafting recipes at load (324 recipes on a loaded ATM10 world). Smithing-only gear (vanilla netherite, Aether's netherite gloves) is listed by hand since it has no crafting recipe. Also scans crafted knives, hammers, rings, metal pressure plates, and Sophisticated Storage metal chests/barrels; their melt yield is derived from the metal ingredients and the least-cost supported recipe for each output. |
 | `smelt_tools_and_armor.js` (foundry section) | Misc items with no tool slot: cauldrons, buckets, anvils, shears, minecarts, crossbows, golden apples/carrots, bells, lodestone, copper horse armor (all oxidation/waxed states), the full quartz block family, every metal lantern (vanilla, Supplementaries, EverythingCopper, Bibliocraft, Macaw's Lights, Chipped), every meltable shield (vanilla, MekanismTools, Immersive Engineering, Ars Nouveau, Enderman Overhaul, Cataclysm), and redstone lamps. |
 | `smelt_create.js` | Create-family items: andesite alloy, diving gear, casing, coins, wires, rods, spools (49 recipes). |
 | `smelt_create_plates.js` | Create-family items crafted from metal plates — girders, vaults, pipes, chutes, toolboxes, catwalks, thrusters, etc. (239 recipes). 1 plate = 1 ingot; yield = (plates x 90) ÷ recipe output count, floored to the nearest 5 mB. |
 | `carbon_basin_cast.js` | 900 mB molten carbon → coal block in the casting basin (the exact inverse of PMW's own coal-block melt). |
+| `straw_biofuel.js` | Mekanism Crusher recipes: 1 Farmer's Delight straw → 3 Bio Fuel; 1 straw bale (9 straw) → 27 Bio Fuel. |
 
 Slot costs for armor/tools: helmet 5, chestplate 8, leggings 7, boots 4, pickaxe 3, axe 3,
 sword 2, hoe 2, shovel 1, gloves 2 (the Aether-style "# #" two-piece craft) — in ingots
